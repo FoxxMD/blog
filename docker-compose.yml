@@ -8,4 +8,4 @@ services:
       - "4000:4000"
     volumes:
       - "${PWD}:/srv/jekyll"
-    command: "serve --host 0.0.0.0"
+    command: "jekyll serve --host 0.0.0.0"

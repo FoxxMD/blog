@@ -38,5 +38,5 @@ RUN set -eux; \
     ;
 
 EXPOSE 4000
-ENTRYPOINT ["bundler", "exec", "jekyll"]
+ENTRYPOINT ["bundler", "exec"]
 CMD ["--version"]

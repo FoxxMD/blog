@@ -39,6 +39,11 @@ ps:			## Show Containers Running
 jekyll-build:
 	@${COMPOSE_PREFIX_CMD} docker compose run --rm jekyll /bin/sh -c "build"
 
+jekyll-proof:
+	@${COMPOSE_PREFIX_CMD} docker compose run --rm jekyll 'htmlproofer _site \
+                                                                     \-\-disable-external \
+                                                                     \-\-ignore-urls "/^http:\/\/127.0.0.1/,/^http:\/\/0.0.0.0/,/^http:\/\/localhost/"'
+
 command:	  ## Execute command ( make command COMMAND=<command> )
 	@${COMPOSE_PREFIX_CMD} docker compose run --rm jekyll ${COMMAND}
 
