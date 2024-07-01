@@ -64,7 +64,7 @@ It's also important that the DNS provider we choose supports **wildcard subdomai
 
 For this tutorial I will be using Cloudflare (which does support wildcards) but, as mentioned at the top, **this can be applied to any DNS provider that supports DNS challenge and wildcards!**
 
-> If your domain registrar does not support DNS challenge validation you can resolve this by signing up at a provider that does (like Cloudflare) and then [change the DNS **name server** records](https://developers.cloudflare.com/dns/zone-setups/full-setup/setup/) for your domain to the new DNS provider.
+> If your domain registrar/DNS provider does not support DNS challenge validation you can resolve this by signing up at a DNS provider that does (like Cloudflare) and then [change the DNS **name server** records](https://developers.cloudflare.com/dns/zone-setups/full-setup/setup/) for your domain to the new DNS provider.
 {: .prompt-info }
 
 ### Configuring Cloudflare API
@@ -130,7 +130,7 @@ Run the container for the first time to generate all the configuration defaults:
 docker-compose up
 ```
 
-The container **will fail** due to missing configuration but that is ok! Now we have configuration created in `/home/host/path/to/swag`{: .filepath}.
+The container **will fail** due to missing cloudflare configuration but that is ok! Now we have configuration created in `/home/host/path/to/swag`{: .filepath}.
 
 Now edit the cloudflare dns challenge configuration for swag:
 
@@ -182,7 +182,7 @@ Technically yes we could just setup a CNAME wildcard record pointing to the priv
 
 So then what do? Well, you've read the section header so I haven't really buried the lead but _*queue scary music*_ yes we have to host our own DNS. Every self-hoster wants to avoid it but if you want LAN-only SSL it's an inevitability. Sorry. Our local machines need to be able to get DNS information from a local source, there's no way around it.
 
-Fortunately, the solution is pretty idiot-proof with the added benefit of network-side adblock (if you so wish) for zero cost: [**Technitium DNS**](https://technitium.com/dns/) is a full-fat authoritative and recursive DNS server with a ton of goodies built in. It works out-of-the-box and we use it like normal DNS so there's no "gotchas" to configuring it. It also happens to be dockerized, of course.
+Fortunately, the solution is pretty idiot-proof with the added benefit of [network-side adblock (if you so wish)](#ad-block-with-technitium) for zero cost: [**Technitium DNS**](https://technitium.com/dns/) is a full-fat authoritative and recursive DNS server with a ton of goodies built in. It works out-of-the-box and we use it like normal DNS so there's no "gotchas" to configuring it. It also happens to be dockerized, of course.
 
 ### What about Pi-hole?
 
@@ -221,7 +221,7 @@ You'll be required to setup an admin user/password after connect the first time 
 
 #### Configuring Technitium
 
-There are [numerous configurable features](https://technitium.com/dns/help.html) but we are only interested in minimum settings required for server our reverse proxy.
+There are [numerous configurable features](https://technitium.com/dns/help.html) but we are only interested in minimum settings required for server our reverse proxy. For [ad-blocking see the Recipes below.](#ad-block-with-technitium)
 
 ##### Settings -> General -> DNS Server Local End Points
 {: data-toc-skip='' .mt-4 }
@@ -283,7 +283,7 @@ However, if you are not satisfied with copy-pasting proxies for every service yo
 
 [Linuxserver](https://www.linuxserver.io/) docker containers, which SWAG is built on, support add-on [mods](https://docs.linuxserver.io/general/container-customization/#docker-mods) provide additional functionality to their containers with the inclusion of one or two additional ENVs. They are extremely awesome. Particularly for us, the [Auto-proxy mod](https://github.com/linuxserver/docker-mods/tree/swag-auto-proxy) adds scripting to SWAG to generate subdomain proxy files based on [docker labels](https://docs.docker.com/config/labels-custom-metadata/) found on containers running on the same docker host SWAG is on.
 
-I've taken the liberty of enhancing this mod enable generating these proxy files from _multiple_ docker hosts, not just on the same machine as SWAG. My mod (pull request), I've named [auto-proxy-multi](https://github.com/FoxxMD/docker-mods/tree/swag-auto-proxy-multi) provides additional functionality:
+I've taken the liberty of enhancing this mod by enabling it to generate these proxy files from _multiple_ docker hosts, not just on the same machine as SWAG. My mod (pull request), I've named [auto-proxy-multi](https://github.com/FoxxMD/docker-mods/tree/swag-auto-proxy-multi), provides additional functionality:
 
 * smart guessing for remote host Web port
 * per-host TLD
@@ -315,7 +315,7 @@ Refer to [auto-proxy labels](https://github.com/FoxxMD/docker-mods/tree/swag-aut
 ![Judge Judy](https://i.giphy.com/media/v1.Y2lkPTc5MGI3NjExdGdtdG9taGswZnlmMXhtbm5uMHdhZHlkOGVkamtzcTFsdHBidnRkdyZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/mvqyWf1zhuyB2/giphy.gif){:height="300" }
 _I'm David Blaine and the Cheez-its are your containers, it's *magic*_
 
-There you have it. LAN-only SSL with no private network details leaked and auto generated subdomain proxies, all using portable docker containers. Enjoy bragging to all your publicly-exposed loser-friends using cloudflare tunnels!
+There you have it. LAN-only SSL with no private network details leaked and auto generated subdomain proxies, all using portable docker containers. Enjoy bragging to all your publicly-exposed, neanderthal friends using cloudflare tunnels!
 
 ## Recipes
 
@@ -336,3 +336,11 @@ Add _even more_ domains by separating with a command in `EXTRA_DOMAINS` followin
 
 > If you use additional (public) domains and have subdomains you want to remain LAN-only it is critical the `server_name` directive in their proxy files **is not `*`**. Explicitly specify the domain like `server_name: subdomain.my_interal_tld.com;` and if use auto-generated proxies ensure [per host TLD](https://github.com/FoxxMD/docker-mods/tree/swag-auto-proxy-multi?tab=readme-ov-file#subdomains-and-tld) is configured.
 {: .prompt-warning }
+
+### Ad-block with Technitium
+
+From the Technitium dashboard nagivate to **Settings -> Blocking -> Allow / Block List URLs**
+
+Each line should be a URL to a plain text with domains (and/or expressions) to block with. The format is the same as Pi-hole so all the lists used on Pi-hole can also be used here.
+
+Alternatively, use **Quick Add** to add a recommended block lists.
