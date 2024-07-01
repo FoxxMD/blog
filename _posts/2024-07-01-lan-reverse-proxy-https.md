@@ -58,7 +58,7 @@ Using this challenge, then, does not require that your web server (or reverse pr
 
 #### Choosing A DNS Provider
 
-With that in mind its (obviously) important to choose a DNS provider that supports DNS challenge through their API. Thankfully, there are many options out there and our reverse proxy, [SWAG](swag) , supports 50+ providers with [easy configuration.](https://github.com/linuxserver/docker-swag/tree/master/root/defaults/dns-conf)
+With that in mind its (obviously) important to choose a DNS provider that supports DNS challenge through their API. Thankfully, there are many options out there and our reverse proxy, SWAG, supports 50+ providers with [easy configuration.](https://github.com/linuxserver/docker-swag/tree/master/root/defaults/dns-conf)
 
 It's also important that the DNS provider we choose supports **wildcard subdomains.** Without wildcard support we will need to list out every subdomain we want to validate for, before the certs are created, which defeats the point of being able auto-generate subdomains later.
 
