@@ -16,10 +16,10 @@ timezone: America/New_York
 
 title: FoxxMD Blog # the main title
 
-tagline: Thoughts and Prayers # it will display as the sub-title
+tagline: This is where the fun begins # it will display as the sub-title
 
 description: >- # used by seo meta and the atom feed
-  Blog and how-to's from FoxxMD
+  Blog and How-To's from FoxxMD
 
 # Fill in the protocol & hostname for your site.
 # e.g. 'https://username.github.io', note that it does not end with a '/'.
