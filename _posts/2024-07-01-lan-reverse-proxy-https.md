@@ -1,15 +1,15 @@
 ---
-title: LAN-Only SSL with Auto-Generated Subdomains
+title: LAN-Only DNS + Trusted SSL + Reverse Proxy with Auto-Generated Subdomains
 description: >-
-  How to configure LAN-only SSL with a reverse proxy (SWAG) and auto-generated subdomains using only docker containers
+  How to configure LAN-only DNS + Trusted SSL with a reverse proxy (SWAG) and auto-generated subdomains using only docker containers
 author: FoxxMD
 date: 2024-07-01 14:06:00 -0400
 categories: [Tutorial]
-tags: [nginx, cloudflare, docker, swag, lan]
+tags: [nginx, cloudflare, docker, swag, lan, dns, ssl]
 pin: false
 ---
 
-**So, you wanna set up LAN-only SSL and thought it would be easy**
+**So, you wanna set up SSL with LAN-only services for your reverse proxy and thought it would be easy**
 
 ![Captain America](https://i.giphy.com/media/v1.Y2lkPTc5MGI3NjExMGdhZnlmbXdsc2VvYWM4Z3J1aTZseTd1ZjdzNWM1ZGV1MWNzNW8zZSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/5hbbUWcuvtoJGx5fQ4/giphy-downsized.gif){: width="650" height="325" }
 
@@ -22,7 +22,7 @@ Yeah, I know. There's a ton of information but none of it is concise or exhausti
 
 At the end of this tutorial you will have:
 
-* A [SWAG](https://docs.linuxserver.io/general/swag/) ([nginx](https://nginx.org/en/) reverse proxy) container with SSL certificates for your domain using [Let's Encrypt](https://letsencrypt.org/) that:
+* A [SWAG](https://docs.linuxserver.io/general/swag/) ([nginx](https://nginx.org/en/) reverse proxy) container with Trusted CA Signed SSL certificates for your domain using [Let's Encrypt](https://letsencrypt.org/) that:
   * does not require port forwarding or any other public-internet exposure to authenticate certs
   * can automatically configure subdomains for containers on one or more docker hosts
 * A DNS container that redirects your LAN-only requests to the SWAG container
@@ -39,7 +39,7 @@ Additionally, given examples assume the user is using Linux/macOS.
 
 ## Step 1: Domain and DNS Challenge
 
-This is the most important part and the main key to enabling you to acquire SSL certs without any publicly-accessible services.
+This is the most important part and the main key to enabling you to acquire Trusted SSL certs without any publicly-accessible services.
 
 When you request an SSL certification for a domain the cert provider requires that you validate that you are the actual owner of that domain through a [**challenge**](https://letsencrypt.org/docs/challenge-types/).
 
@@ -168,7 +168,7 @@ At this point the rest of the tutorial is optional. If you are fine with manuall
 
 ### It Ain't Magic
 
-_What gives?? I've got my reverse proxy setup. Certs are validated. With my normal public-facing proxy all I needed was a wildcard CNAME and subdomains just worked!_
+_What gives?? I've got my reverse proxy setup. Certs are validated. With my normal public-facing proxy all I needed was an A record and wildcard CNAME and subdomains just worked!_
 
 ![Judge Judy](https://i.giphy.com/media/v1.Y2lkPTc5MGI3NjExcjY2NTBxaWlqaTN2d2h4a3d1dDNmcnUwMW90eHVhaG5sNXR0YXd0NyZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/Rhhr8D5mKSX7O/giphy.gif){: width="650" height="325" }
 
@@ -177,10 +177,15 @@ Well we didn't do that! In fact, we didn't setup _any DNS records at all_ other 
 1. do not know the reverse proxy exists, there are no public DNS records.
 2. do not know it should look for every subdomain at the reverse proxy, again _there are no public DNS records._
 
-Technically yes we could just setup a CNAME wildcard record pointing to the private IP where the reverse proxy is located but we  _do not want to put these records in the public DNS in order to avoid leaking details about our private network._
+Technically, yes, you could skip this entire section by setting this up in your public DNS records:
+
+* A Record: `Reverse Proxy Local IP`
+* CNAME Record: `*` to `MY_DOMAIN.com`
+
+but this exposes details about your private network! Yes, a simple A record with an unreachable internal IP is potentially harmless but why risk it? And what if you want to add more complicated behavior later, exposing more details? IMO security by design is the best approach especially for a homelab where you probably want to set-and-forget.
 
 So, <a href="https://i.giphy.com/media/v1.Y2lkPTc5MGI3NjExd2V6cWM4em1wZzRnYnNqMzJqNjN0bzNuamZraTR2bW1tejF2bGpuNCZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/h3ViLKWOJiwrAZW5du/giphy.gif" target="_blank">what do now?</a>
-Well, you've read the section header so I haven't really buried the lead but _*queue scary music*_ yes we have to host our own DNS. Every self-hoster wants to avoid it but if you want LAN-only SSL it's an inevitability. Sorry. Our local machines need to be able to get DNS information from a local source, there's no way around it.
+Well, you've read the section header so I haven't really buried the lead but _*queue scary music*_ yes we have to host our own DNS. Every self-hoster wants to avoid it but it's an inevitability if you do not want to expose any details about your private network. Sorry!
 
 Fortunately, the solution is pretty idiot-proof with the added benefit of [network-side ad-blocking (if you so wish)](#ad-block-with-technitium) for zero cost: [**Technitium DNS**](https://technitium.com/dns/) is a full-fat authoritative and recursive DNS server with a ton of goodies built in. It works out-of-the-box and we use it like normal DNS so there's no "gotchas" to configuring it. It also happens to be dockerized, of course.
 
