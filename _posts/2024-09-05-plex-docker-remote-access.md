@@ -146,6 +146,8 @@ services:
       plexnet:
         ipv4_address: 192.168.0.233
       default: # specify we want our container attached to default (bridge) network, as well
+        aliases:
+          - plexlocal # give container an alias on bridge network so we can connect to it by name from other containers
 # ...
 networks:
   plexnet:
@@ -196,7 +198,8 @@ Now when we inspect our container:
                     "Links": null,
                     "Aliases": [
                         "plex",
-                        "plex"
+                        "plex",
+                        "plexlocal"
                     ],
                     "MacAddress": "02:42:ac:0d:00:02",
                     "DriverOpts": null,
@@ -240,6 +243,8 @@ eth1: flags=4163<UP,BROADCAST,RUNNING,MULTICAST>  mtu 1500
 ```
 
 we see that our ipvlan interface is listed first as eth0, so Plex grabs the correct interface to listen on.
+
+Other containers in the stack that need to communicate with the Plex container can now use `plexlocal` instead of an IP address, as well.
 
 ## Conclusion
 
