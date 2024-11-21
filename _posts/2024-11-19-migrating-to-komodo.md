@@ -168,6 +168,8 @@ This guide will detail the opinionated approach I took to migrate wholly to Komo
   * Configure in a way that allowed me to edit on Komodo and commit to repo on save
   * Move all docker/compose secrets out of `.env` files so they aren't committed
 * Commit all Komodo resources to git repo for backup
+* Configure Komodo and stacks in way that files are user-accessible from the host
+  * I prefer to use [bind mounts](https://docs.docker.com/engine/storage/bind-mounts/) over docker volumes so that in the event I need to debug or edit things manually the files aren't hidden away. It also makes backing up persistent data easier IMO.
 
 ## Migrating
 
@@ -179,7 +181,7 @@ I do use [unraid](https://unraid.net/) and considered standing up Gitea with doc
 
 All of my Resources and Stacks would then be Git Repo based.
 
-### Git Repo
+##### Git Repo
 
 I went with a monorepo for all my resources. I like this over individual repos per resource so that I can more easily see a "combined" git log of all the changes I've made over my entire lab. The cost for this choice is that every new Resource requires having `Run Directory` defined rather than just `Repo`.[^template]
 
@@ -207,19 +209,317 @@ komodo/
 
 Every machine gets its own folder in `stacks` and stacks that aren't machine specific (volumes) can be places in `common`. Komodo gets its own folder for resource TOML files.
 
-### Converting Standalone Containers
+### Setup Komodo
 
-The majority of my services were containers created with Portainer. To turn each of these into a stack I used [docker-autocompose](https://github.com/Red5d/docker-autocompose) as a docker container to generate a compose file to output:
+#### Create Komodo Core
+
+I chose to setup Komodo [Core](https://komo.do/docs/setup/mongo) using MongoDB. This stack runs on my most stable machine since it will be the brains of the operation.
+
+#### Create Komodo Periphery Agents
+
+I created [Periphery agents on all other servers as containers](https://komo.do/docs/connect-servers#install-the-periphery-agent---container). The agent can be installed natively using systemd but I like keeping everything contained to docker so there is less to think about. After each agent is created it's a simple process to add as a [Server](https://komo.do/docs/resources#server) resource in the komodo core interface.
+
+<details markdown="1">
+
+<summary>A Note on Security and Non-Root Periphery</summary>
+
+I prefer to use containers with a non-root user and generally don't like giving unfettered access to `docker.sock`. _This is entirely optional_ but I chose to run Periphery as non-root and provide access to docker via [docker-socket-proxy](https://github.com/linuxserver/docker-socket-proxy).
+
+Periphery image can _mostly_ be run normally just by specifying `user` in the compose file but I found this wasn't entirely sufficient. When Komodo uses git it needs to set the email/name for the git user which is normally set (I think) under `root` but when run as non-root this is no longer the case. The solution to this is [supplying a `home` directory inside the container](https://github.com/mbecker20/komodo/issues/128#issuecomment-2423471703) which can be done by building your own periphery image inline.
+
+In summary, here is an example compose file for a non-root Periphery container using docker-socket-proxy that would be run on one of your servers:
+
+<details markdown="1">
+
+```yaml
+services:
+# ... other services like komodo core, maybe
+socket-proxy:
+    image: lscr.io/linuxserver/socket-proxy:latest
+    environment:
+      - ALLOW_START=1 #optional
+      - ALLOW_STOP=1 #optional
+      - ALLOW_RESTARTS=1 #optional
+      - AUTH=0 #optional
+      - BUILD=1 #optional
+      - COMMIT=0 #optional
+      - CONFIGS=1 #optional
+      - CONTAINERS=1 #optional
+      - DISABLE_IPV6=0 #optional
+      - DISTRIBUTION=0 #optional
+      - EVENTS=1 #optional
+      - EXEC=1 #optional
+      - IMAGES=1 #optional
+      - INFO=1 #optional
+      - NETWORKS=1 #optional
+      - NODES=0 #optional
+      - PING=1 #optional
+      - POST=1 #optional
+      - PLUGINS=0 #optional
+      - SECRETS=1 #optional
+      - SERVICES=1 #optional
+      - SESSION=0 #optional
+      - SWARM=0 #optional
+      - SYSTEM=1 #optional
+      - TASKS=0 #optional
+      - VERSION=1 #optional
+      - VOLUMES=1 #optional
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /run
+
+  komodo-periphery:
+    restart: unless-stopped
+    #image: ghcr.io/mbecker20/periphery:latest # use ghcr.io/mbecker20/periphery:latest-aarch64 for arm support
+    build:
+      context: .
+      dockerfile_inline: |
+        FROM ghcr.io/mbecker20/periphery:latest
+        USER 1000:1000
+        WORKDIR /home/myUser
+        ENV HOME=/home/myUser
+    ports:
+      # only necessary if not in same stack as komodo-core
+      - 8120:8120
+    volumes:
+      # setup your stacks and repos volumes here
+    depends_on:
+      - socket-proxy
+    environment:
+      # THE KEY to making periphery access docker without docker.sock
+      DOCKER_HOST: tcp://socket-proxy:2375
+    labels:
+      komodo.skip: # Prevent Komodo from stopping with StopAllContainers
+```
+{: file='compose.yaml'}
+
+</details>
+
+</details>
+
+#### Setup Git Provider
+
+Before Stacks can be created we need to setup a Provider in Core so that Komodo knows what Git platform to pull/push from and who it is acting on behalf of.
+
+In Komodo, navigate to `Settings -> Providers -> Git Accounts` and then create a **New Account**. You'll need to create a new [access token](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens) on github that has permissions to read/write the [repo you created for komodo.](#git-repo) After creating the token the Git Account in Komodo will have these inputs:
+
+* Domain `github.com`
+* Username `your github username`
+* Token `token created for repo`
+
+### Creating Stacks
+
+Now that we have Komodo Core and Periphery agents setup on all our servers, and git configured, we can start creating [Stack](https://komo.do/docs/resources#stack) Resources. These are the bread & butter of Komodo and what you are probably here for. A Stack is docker `compose.yaml` file(s) and the associated configuration needed to deploy them:
+
+* what server to deploy to
+* where to find stack files (git repo and relative directory to files)
+* ENV variables that should be passed to compose
+
+To create a new Stack navigate to `Stacks` in Komodo Core and click **New Stack**. Give the stack a name and create it.
+
+> If you have existing compose projects running on the server you will deploy to then use the name of the folder (if any) the compose files are located in. Komodo will parse that the stack is already running so you don't need to redeploy.
+{: .prompt-tip }
+
+We now need to configure the new Stack so it points to our Git repo so it can find (or create) compose files for our project. In the newely created Stack under `Config`:
+
+* Source
+  * Git Provider: `github.com`
+  * Account: username from dropdown you created in the [Git Provider](#setup-git-provider) step
+  * Repo: For github this is `username/repo-name` like you'd see in the URL when viewing your repo on github.com
+  * Run Directory: This will be dependent on how you structured your [Git Repo](#git-repo) from earlier
+    * EX: `server1/immich`
+
+After configuring these settings **Save** your Stack. 
+
+Now, in the **Info** tab:
+
+* If the Run Directory and compose files already exist you will now see them in the `Info` tab
+* If they did not exist you will see a placeholder editor and `Initialize File`. Click + Confirm this now to create and commit a blank compose file to the repo
+
+Additionally, if the stack was already running and you followed the tip above you should also see the Stack status as `Running`.
+
+#### Populating Stack from Existing Projects
+
+##### Docker Compose
+
+If you have existing projects that use `compose.yaml`/docker compose you have several options for setting up your stack, most of which were [briefly mentioned above.](#so-whats-the-catch) How you decide to get them into the Stack is really up to you:
+
+* Outside of komodo [structure your git repo](#git-repo) and commit your existing projects before creating Stacks. Then, when the Stack is created with the correct Run Directory it'll auto-populate everything for you
+* Create the Stack and then manually copy-paste your existing `compose.yaml` contents into Stack `Info` and **Save** to commit to the repo using Komodo
+
+Before starting and re-deploying the newely created Stack read the [environmental variable section below.](#environmental-variables-and-secrets)
+
+##### Converting Standalone Containers
+
+If you have containers that were created with `docker run...` or something like Portainer you will now need to convert them to compose projects. To turn each of these into a stack I used [docker-autocompose](https://github.com/Red5d/docker-autocompose) as a docker container to generate a compose file to output. Run this on the machine the container you want to convert is running on:
 
 ```shell
 docker run --rm -v /var/run/docker.sock:/var/run/docker.sock ghcr.io/red5d/docker-autocompose container_name
 ```
 
-which can then be copy-pasted into a new stack in Komodo with the corresponding `Run Directory` for the service.
+This can then be copy-pasted into a new stack in Komodo with the corresponding `Run Directory` for the service.
 
 Alternatively, use one of these [shell scripts](https://github.com/Red5d/docker-autocompose/issues/50) to generate files for each running container. Then move each file into the correct folder in your repo folder and commit. Then create new stacks for each in Komodo pointing to the correct `Run Directory`.
 
 docker-autocompose tends to create verbose files, however. Labels, default environment variables (exposed from Dockerfile), and dropped security permissions can all be pruned from the files -- but it is a good starting point.
+
+Before stopping/destroying your old containers and starting the new Stack read the [environmental variable section below.](#environmental-variables-and-secrets)
+
+#### Environmental Variables and Secrets
+
+The **Environment** section in your Stack's `Config` tab will pass ENVs to the _compose_ command used to create the stack. Note that this is different than ENVs passed to each service: the Stack `Environment` variables are [only for use in `compose.yaml`](https://docs.docker.com/compose/how-tos/environment-variables/variable-interpolation/) unless you explicitly set them in the compose files `environment:` section of each service.
+
+<details markdown="1">
+
+<summary>Example of this difference</summary>
+
+```yaml
+services:
+  my-service:
+    image: acoolname/myimage:${VERSION}
+    # ...
+    environment:
+      MyCoolEnv: Foo
+```
+{: file='compose.yaml'}
+
+```
+VERSION=1.2.3-rc
+```
+{: file='Stack Environment'}
+
+* `my-service` will pull the image `acoolname/myimage:1.2.3-rc` 
+* it will have `MyCoolEnv=Foo` available in the container
+* it will NOT have `VERSION=1.2.3-rc` available in the container
+
+Alternatively:
+
+```yaml
+services:
+  my-service:
+    image: acoolname/myimage:${VERSION}
+    # ...
+    environment:
+      MyCoolEnv: Foo
+      MyOtherEnv: ${VARFUN}
+```
+{: file='compose.yaml'}
+
+```
+VERSION=1.2.3-rc
+VARFUN=Bar
+```
+{: file='Stack Environment'}
+
+* `my-service` will pull the image `acoolname/myimage:1.2.3-rc` 
+* it will have `MyCoolEnv=Foo` available in the container
+* it will have `MyOtherEnv=Bar` available in the container
+
+</details>
+
+Komodo stores the contents of `Environment` in a `.env` located next to the created compose files for the Stack. Additionally, if you use [Resource Sync](#resource-sync) it will store the contents alongside the rest of the Stack configuration so it is best to **not** put sensitive data in Environment and instead use [Secrets interpolation to pass that data through ENV.](https://komo.do/docs/variables)
+
+##### Using Secrets
+
+In Komodo Core navigate to `Settings -> Variables` and hit **New Variable**, then give it a name. In the new Variable set the value and toggle as a secret to hide it's value in logs.
+
+Then, in your Stack's `Environment` interpolate the secret as an ENV by wrapped the secret name in double brackets `[[]]`:
+
+* Secret Name: `IMMICH_DB_PASS`
+* Secret Value: `MyCoolPass`
+
+```
+VERSION=1.2.3-rc
+DB_PASSWORD=[[IMMICH_DB_PASS]]
+```
+{: file='Stack Environment'}
+
+Now your secret will be interpolated into the ENV value when the stack is deployed.
+
+#### Cutover New Stack
+
+Now that the Stack [configured for your repo](#creating-stacks), is [populated](#populating-stack-from-existing-projects) with a compose file, and has [ENV/Secrets set](#environmental-variables-and-secrets) it's time to fully move management of the project to Komodo.
+
+If you had an existing stack with the same project name you might already be done (based on Stack status), otherwise the process is simple:
+
+* stop your old compose project/container
+* Deploy Komodo Stack
+
+If you have container names explicitly specified you may need to complete destroy (`compose down` or `docker container rm`) the old project before the new one can be deployed.
+
+And now you're done! Up until cutover your old project can continue to be used without any conflict with Komodo. This makes migration easy to do in a piecemeal fashion -- just migrate one project at time when you have the energy to do so.
+
+Now...to take full advantage of Komodo we want to commit the _topology_ of our deployments to git so that our entire stack ecosystem can be recreated from scratch even if Komodo Core is destroyed. Enter [Resource Sync](#resource-sync)
+
+### Resource Sync
+
+This is the true "killer feature" [mentioned in the intro.](#this-is-it-chief) With [Resource Sync](https://komo.do/docs/sync-resources) Komodo will generate a plain text representation of all our Stacks and Servers which can be then be synced to a git repo (or pulled to make Komodo create/modify Resources).
+
+#### Limiting Scope
+
+Komodo makes use of Tags across all Resource which makes it easy to filter when searching in the UI _but also_ as a way to limit when or on what actions things are taken. I only want Stacks and Server resources to be synced (omitting Secrets) so lets create a Tag and tag all our Stacks/Servers with it:
+
+* In Komodo Core navigate to `Settings -> Tags` and create a **New Tag**
+* Iterate through each Stack and Server in Komodo Core and click the `+` sign next to Tags on the details of each (usually right below Name at the top of the page), then add your Tag
+
+#### Create Resource Sync
+
+In Komodo Core navigate to `Syncs` and create **New Resource Sync**. 
+
+In the new sync under `Config` Choose Mode: `Git Repo` and fill out the **Source** information the same way you did for a [Stack](#creating-stacks).
+
+Now, under **Resource Paths** add a new Path to a file you want to store the sync information in. For instance, to create a new file at the root of the repository use `main.toml`. If you used [Tags for limiting scope](#limiting-scope) specify this in the **Match Tags** section.
+
+Now **Save** and then **Initialize** the file.
+
+You should now see that the Sync status is **Pending** and there are three actions available under **Execute**. Pending means that there is a difference between the current configuration of all (tagged) Resources in Komodo Core and the configuration found in the repository (under `main.toml`). The difference, at this point, is that there is nothing in `main.toml`. You can see this in the `Info` tab.
+
+* **Execute Sync** will **pull configuration from** your resource file (in the repo `main.toml`) and cause Komodo to modify/create/delete all matching resources to match what is in the file.
+  * This is what you would use if you had an existing Resource Sync file and were rebuilding your lab
+* **Commit Changes** will **commit current Komodo configuration to** your resource file in the repo (`main.toml`) so that it reflects the current state of Komodo and all (tagged) Resources.
+  * This is what you want if you want to **backup** your lab's configuration to repo
+
+Execute **Commit Changes** to backup your configuration. After execution you'll see your current configuration reflected in the `Info` tab.
+
+You should do this after making any resource changes (Adding Stacks, updating Environment, etc..) to make sure your backed up configuration stays up to date. Now you'll have the ability to re-deploy your entire lab with one click!
+
+## Conclusion
+
+Congratulatious on migrating to the way of the lizard 🦎! It takes effort to get to this point, though not _difficult_ just time consuing, but it's well worth the energy! You can sleep peacefully at night knowing all of your cool services are backed up as well as how and where you deployed them. Next time you have a catastrophic hardware failure and a drive dies you can easily get back to normal operation by just installing a periphery agent and executing a Resource Sync. So easy!
+
+This guide covers a basic setup but Komodo is so much more than just Stacks. Builders, Deployments, Actions, Alerters...they all make lab automation easier and all can be synced/backed up just like Stacks. Take the time to explore the rest of the Komodo ecosystem and learn how to fully utilize it. If you have questions or need more guidance check out [Github Issues](https://github.com/mbecker20/komodo/issues?q=sort%3Aupdated-desc+is%3Aissue+is%3Aopen) or join the (very active) [Discord server](https://discord.gg/DRqE8Fvg5c).
+
+## Additional Tips and Notes
+
+### Docker Data Agnostic Location
+
+One of the benefits to Komodo is being able to re-deploy a stack to any Server with basically one click. What isn't so easy, though, is moving (or generally locating) any persistent data that needs to be mounted into those services. If you use named volumes and have a backup strategy already this is a moot point but if you are like me and use [bind mounts](https://docs.docker.com/engine/storage/bind-mounts/) I found a good approach was to use a host-specific ENV as a directory prefix when writing compose files. This has the advantage of making the compose bind mount location agnostic to the host it is on and makes moving data, or rebuilding a host, much easier since compose files don't need to be modifed if the data location changes parent directories.
+
+An example:
+
+```yaml
+services:
+  my-service:
+    image: #...
+    volumes:
+      - $DOCKER_DATA/my-service-data:/app/data
+```
+{: file='compose.yaml'}
+
+As long as `DOCKER_DATA` is set as an ENV on each host then the compose file becomes storage location agnostic. It doesn't matter whether you use `/home/MyUser/docker` or `/opt/docker` or whatever.
+
+To do this you'll need to set this ENV in either the shell used by Periphery (`.bashrc` or `.profile`) or set it in the [systemd configuration](https://www.baeldung.com/linux/systemd-services-environment-variables) for a [systemd periphery agent.](https://github.com/mbecker20/komodo/blob/main/scripts/readme.md#periphery-setup-script)
+
+### Alternatives for Komodo's Missing Features
+
+Komodo is in active development and while the goal is to have good feature parity with Portainer/Dockge it is still missing some conveniences. Komodo's author is _hard_ at work implementing missing features and the speed of development is quite frankly insane but in the meantime try these out to make up for missing features:
+
+##### Real-time Logging
+
+Use [Dozzle](https://dozzle.dev/) to monitor logging for containers and stacks. It supports merging all stack containers together as well as monitoring containers from multiple machines.
 
 ___
 
