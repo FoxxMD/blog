@@ -122,8 +122,6 @@ So here's the rub. To fully take advantage of Komodo and all the shinyness descr
 
 To think like a lizard 🦎 you're going to have to change the way you think about creating and managing docker containers/stacks. This is going to be most difficult if you aren't heavily using compose stacks already.
 
-Komodo does not have a way to create standalone containers that way Portainer does. It expects you to create stacks ([docker compose](https://docs.docker.com/reference/compose-file/) `compose.yaml` files) for everything you want to manage. It _does_ support starting/stopping existing containers but that's not really what it's there for.
-
 Komodo wants you to _declaratively_ define what is it you want to run, rather than _imperatively_ creating it for you the way Portainer->Containers does.
 
 This is not limited to standalone containers, either. If you have existing stacks running on a machine Komodo will not automatically surface them in the UI the way dockge does when pointed to a folder full of compose files. While Komodo can manage existing stacks/compose files you will still need to "create" the stack in Komodo and tell it where the files are before it can take over management.[^import]
