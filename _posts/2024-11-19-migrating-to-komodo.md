@@ -235,30 +235,30 @@ services:
 socket-proxy:
     image: lscr.io/linuxserver/socket-proxy:latest
     environment:
-      - ALLOW_START=1 #optional
-      - ALLOW_STOP=1 #optional
-      - ALLOW_RESTARTS=1 #optional
-      - AUTH=0 #optional
-      - BUILD=1 #optional
+      - ALLOW_START=1
+      - ALLOW_STOP=1
+      - ALLOW_RESTARTS=1
+      - AUTH=0 #enable for pushing builds to registry and increasing pull rate limits
+      - BUILD=1 #required to build images
       - COMMIT=0 #optional
       - CONFIGS=1 #optional
-      - CONTAINERS=1 #optional
+      - CONTAINERS=1 #required to manage containers
       - DISABLE_IPV6=0 #optional
       - DISTRIBUTION=0 #optional
       - EVENTS=1 #optional
       - EXEC=1 #optional
-      - IMAGES=1 #optional
-      - INFO=1 #optional
-      - NETWORKS=1 #optional
+      - IMAGES=1 #required to manage images
+      - INFO=1
+      - NETWORKS=1 #required to manage networks
       - NODES=0 #optional
       - PING=1 #optional
-      - POST=1 #optional
+      - POST=1 #required to manage docker
       - PLUGINS=0 #optional
       - SECRETS=1 #optional
       - SERVICES=1 #optional
       - SESSION=0 #optional
       - SWARM=0 #optional
-      - SYSTEM=1 #optional
+      - SYSTEM=1 #enable for system stats in dashboard
       - TASKS=0 #optional
       - VERSION=1 #optional
       - VOLUMES=1 #optional
