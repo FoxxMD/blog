@@ -238,30 +238,30 @@ socket-proxy:
       - ALLOW_START=1
       - ALLOW_STOP=1
       - ALLOW_RESTARTS=1
-      - AUTH=0 #enable for pushing builds to registry and increasing pull rate limits
+      - AUTH=1 #optional, enable for pushing builds to registry and increasing pull rate limits
       - BUILD=1 #required to build images
       - COMMIT=0 #optional
-      - CONFIGS=1 #optional
+      - CONFIGS=0
       - CONTAINERS=1 #required to manage containers
-      - DISABLE_IPV6=0 #optional
-      - DISTRIBUTION=0 #optional
-      - EVENTS=1 #optional
-      - EXEC=1 #optional
+      - DISABLE_IPV6=0
+      - DISTRIBUTION=1 #required for image digest and registry info
+      - EVENTS=1 #required for core communication
+      - EXEC=1 #required for 'exec' into container, future use
       - IMAGES=1 #required to manage images
       - INFO=1
       - NETWORKS=1 #required to manage networks
-      - NODES=0 #optional
-      - PING=1 #optional
-      - POST=1 #required to manage docker
+      - NODES=0
+      - PING=1 #required for core communication
+      - POST=1 #required for WRITE operations to all other permissions
       - PLUGINS=0 #optional
-      - SECRETS=1 #optional
-      - SERVICES=1 #optional
-      - SESSION=0 #optional
-      - SWARM=0 #optional
-      - SYSTEM=1 #enable for system stats in dashboard
-      - TASKS=0 #optional
-      - VERSION=1 #optional
-      - VOLUMES=1 #optional
+      - SECRETS=0
+      - SERVICES=0
+      - SESSION=1
+      - SWARM=0
+      - SYSTEM=1 #optional, enable for system stats in dashboard
+      - TASKS=0
+      - VERSION=1 #required for core communication
+      - VOLUMES=1 #required to manage volumes
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
     restart: unless-stopped
