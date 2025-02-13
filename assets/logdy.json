@@ -1,0 +1,156 @@
+{
+	"name": "main",
+	"columns": [
+		{
+			"id": "408903",
+			"name": "ip",
+			"handlerTsCode": "(line: Message): CellHandler => {\n    return { text: line.json_content['ip'] }\n}",
+			"idx": 11,
+			"width": 150,
+			"faceted": true
+		},
+		{
+			"id": "532028",
+			"name": "column dash1",
+			"handlerTsCode": "(line: Message): CellHandler => {\n    return { text: line.json_content['dash1'] }\n}",
+			"idx": 12,
+			"width": 150,
+			"hidden": true
+		},
+		{
+			"id": "172255",
+			"name": "column dash2",
+			"handlerTsCode": "(line: Message): CellHandler => {\n    return { text: line.json_content['dash2'] }\n}",
+			"idx": 13,
+			"width": 150,
+			"hidden": true
+		},
+		{
+			"id": "131662",
+			"name": "timestamp",
+			"handlerTsCode": "(line: Message): CellHandler => {\n    return { text: line.json_content['timestamp'] }\n}",
+			"idx": 14,
+			"width": 150
+		},
+		{
+			"id": "386778",
+			"name": "method",
+			"handlerTsCode": "(line: Message): CellHandler => {\n    return { text: line.json_content['method'] }\n}",
+			"idx": 15,
+			"width": 60
+		},
+		{
+			"id": "668890",
+			"name": "path",
+			"handlerTsCode": "(line: Message): CellHandler => {\n    return { text: line.json_content['path'] }\n}",
+			"idx": 16,
+			"width": 250
+		},
+		{
+			"id": "803562",
+			"name": "protocol",
+			"handlerTsCode": "(line: Message): CellHandler => {\n    return { text: line.json_content['protocol'] }\n}",
+			"idx": 17,
+			"width": 80
+		},
+		{
+			"id": "903282",
+			"name": "scheme",
+			"handlerTsCode": "(line: Message): CellHandler => {\n    return { text: line.json_content['scheme'] }\n}",
+			"idx": 18,
+			"width": 70
+		},
+		{
+			"id": "557566",
+			"name": "status",
+			"handlerTsCode": "(line: Message): CellHandler => {\n    return { text: line.json_content['status'] }\n}",
+			"idx": 19,
+			"width": 60
+		},
+		{
+			"id": "382123",
+			"name": "bytesSent",
+			"handlerTsCode": "(line: Message): CellHandler => {\n    return { text: line.json_content['bytesSent'] }\n}",
+			"idx": 20,
+			"width": 90
+		},
+		{
+			"id": "290612",
+			"name": "subdomain",
+			"handlerTsCode": "(line: Message): CellHandler => {\n    return { text: line.json_content['subdomain'] }\n}",
+			"faceted": true,
+			"idx": 13,
+			"width": 100
+		},
+		{
+			"id": "149526",
+			"name": "hostname",
+			"handlerTsCode": "(line: Message): CellHandler => {\n    return { text: line.json_content['hostname'] }\n}",
+			"idx": 21,
+			"width": 150,
+			"faceted": true,
+			"hidden": false
+		},
+		{
+			"id": "037718",
+			"name": "host",
+			"handlerTsCode": "(line: Message): CellHandler => {\n    return { text: line.json_content['host'] }\n}",
+			"faceted": true,
+			"idx": 16,
+			"width": 150
+		},
+		{
+			"id": "776773",
+			"name": "referer",
+			"handlerTsCode": "(line: Message): CellHandler => {\n    return { text: line.json_content['referer'] }\n}",
+			"idx": 22,
+			"width": 400
+		},
+		{
+			"id": "363116",
+			"name": "uaURL",
+			"handlerTsCode": "(line: Message): CellHandler => {\n    return { text: line.json_content['uaUrl'] }\n}",
+			"faceted": true,
+			"idx": 14,
+			"width": 193
+		},
+		{
+			"id": "784313",
+			"name": "userAgent",
+			"handlerTsCode": "(line: Message): CellHandler => {\n    return { text: line.json_content['userAgent'] }\n}",
+			"idx": 23,
+			"width": 788
+		},
+		{
+			"id": "514410",
+			"name": "external",
+			"handlerTsCode": "(line: Message): CellHandler => {\n    return { text: line.json_content['external'] }\n}",
+			"faceted": true,
+			"idx": 15,
+			"width": 150,
+			"hidden": true
+		},
+		{
+			"id": "888924",
+			"name": "me",
+			"handlerTsCode": "(line: Message): CellHandler => {\n    return { text: line.json_content['me'] }\n}",
+			"faceted": true,
+			"idx": 18,
+			"width": 150,
+			"hidden": true
+		}
+	],
+	"settings": {
+		"leftColWidth": 300,
+		"drawerColWidth": 530,
+		"maxMessages": 1000,
+		"middlewares": [
+			{
+				"id": "m_809452",
+				"name": "line-parser",
+				"handlerTsCode": "(line: Message): Message | void => {\n\n    const logPattern = /^(\\S+) (\\S+) (\\S+) \\[([^\\]]+)\\] \"(\\S+) (\\S+) (\\S+)\" (\\d+) (\\d+) \"([^\"]+)\" \"([^\"]+)\"(?: (?:\"([^\"]+)\")(?: \"([^\"]+)\")?)?/;\n    const logMatches = line.content.match(logPattern);\n    let external = true;\n    let me = false;\n\n    if (logMatches) {\n\n        external = !logMatches[1].includes('192.168.1') && logMatches[1] !== \"2600:1700:myipv6:matcher\";\n        me = logMatches[1] === \"192.168.1.XXX\" || logMatches[1] === \"2600:1700:myipv6:matcher\"\n\n        const urlPattern = /^(?:([A-Za-z]+?):\\/\\/)?(?:[^@\\n]+@)?(?:([A-Za-z]+?)\\.)?([^:\\/\\n?]+)(.*)/;\n\n        let hostname = '-',\n            subdomain = '-',\n            host = logMatches[12] ?? '-',\n            uaUrl;\n\n        if (host !== '-') {\n\n            const urlMatch = host.match(urlPattern);\n\n            if (urlMatch) {\n                if (urlMatch[3].includes('.')) {\n                    subdomain = urlMatch[2];\n                    hostname = urlMatch[3];\n                } else {\n                    hostname = `${urlMatch[2]}.${urlMatch[3]}`;\n                }\n            }\n        }\n\n        const regUrlPattern = /\\+([(http(s)?):\\/\\/(www\\.)?a-zA-Z0-9@:%._\\+~#=]{2,256}\\.[a-z]{2,20}\\b([-a-zA-Z0-9@:%_\\+.~#?&//=]*))/;\n        const uaMatch = logMatches[11].match(regUrlPattern);\n        if (uaMatch) {\n            uaUrl = uaMatch[1];\n        }\n\n        line.is_json = true\n        line.json_content = {\n            ip: logMatches[1],\n            dash1: logMatches[2],\n            dash2: logMatches[3],\n            timestamp: logMatches[4],\n            method: logMatches[5],\n            path: logMatches[6],\n            protocol: logMatches[7],\n            status: parseInt(logMatches[8]),\n            bytesSent: parseInt(logMatches[9]),\n            subdomain,\n            hostname,\n            referer: logMatches[10],\n            userAgent: logMatches[11],\n            uaUrl,\n            external: external ? 'true' : 'false',\n            me: me ? 'true' : 'false',\n            host,\n            scheme: logMatches[13]\n        };\n    }\n\n    return line;\n}"
+			}
+		],
+		"entriesOrder": "desc"
+	}
+}
