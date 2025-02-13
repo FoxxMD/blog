@@ -1,11 +1,11 @@
 ---
-title: Monitoring NGINX logs with Logdy
+title: Monitoring NGINX logs with Dockerized Logdy
 description: >-
-  Creating a clean, searchable, and filterable presentation of NGINX access.log
+  Creating a searchable and filterable presentation of NGINX access.log with Logdy, dockerized
 author: FoxxMD
 date: 2025-02-13 08:00:00 -0400
 categories: [Tutorial]
-tags: [nginx, logging, logdy]
+tags: [nginx, logging, logdy, docker]
 pin: false
 image:
   path: /assets/img/logdy.jpg
