@@ -7,6 +7,10 @@ date: 2025-02-13 08:00:00 -0400
 categories: [Tutorial]
 tags: [nginx, logging, logdy]
 pin: false
+image:
+  path: /assets/img/logdy.jpg
+  lqip: data:image/webp;base64,UklGRnwAAABXRUJQVlA4IHAAAABQBACdASo1ACgAPzmaw1uvKrAkIqoyACcJaWsJAAl1MKnhHcYNXXG7l50AAP7rTa+CMvCZEdWnHj2AB1pG8vMBmt5SR8IV2EaDc5YxzLE4zi/TD12DQHaARa/uRzNNqhdb9tOyI/owJkDT4Y5agAAA
+  alt: Screenshot of Logdy
 ---
 
 While recently trying to diagnose [nginx+crowdsec issues](/posts/swag-crowdsec-tld) I discovered [**Logdy**](https://logdy.dev/), a web-based log browser that makes parsing and presenting plain text logs as rich data criminally easy.
