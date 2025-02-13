@@ -9,13 +9,13 @@ tags: [swag, nginx, crowdsec, lua]
 pin: false
 ---
 
-# Background
+## Background
 
 I use [Linuxserver.io's (LSIO)](https://www.linuxserver.io/) dockerized nginx reverse-proxy solution, [SWAG](https://docs.linuxserver.io/general/swag/), as the point of ingress for public-facing services in my homelab. In addition to being easy to configure LSIO containers can be sideloaded with ["Docker Mods"](https://www.linuxserver.io/blog/2019-09-14-customizing-our-containers#docker-mods) that can provide additional functionality to the main service. Some of these are [generic](https://mods.linuxserver.io/?mod=universal) but most are specific to the container they are running on.
 
 One of thes docker mods specific to SWAG installs and configures an [nginx bouncer](https://github.com/linuxserver/docker-mods/tree/swag-crowdsec) for [Crowdsec](https://crowdsec.net/), a community-driven quasi [WAF](https://www.cloudflare.com/learning/ddos/glossary/web-application-firewall-waf/). This mod, along with [LSIO's guide for setting up a full Crowdsec solution](https://www.linuxserver.io/blog/blocking-malicious-connections-with-crowdsec-and-swag), is a large facet of my homelab's defensive design.
 
-# The Setup
+## The Setup
 
 Crowdsec reads `access.log` from nginx and then uses [leaky buckets](https://en.wikipedia.org/wiki/Leaky_bucket) along with Crowdsec scenarios (patterns) to detect bad behavior from IPs accessing my web server. When a scenario "overflows" a bucket (detected X number of times within Y minutes, simplified) the IP is then banned (added to a list in Crowdsec) for a period of time. The bouncer becomes relevant here: on each request nginx is supposed to check the banned list of IPs and return a "banned" page with 403 if the `$remote_addr` of the request matches it, regardless of what the IP is requesting.
 
@@ -31,7 +31,7 @@ myTLD.com/something                <-- not intercepted! Returns 307
 
 This was perplexing...why was it only working sometimes? And basically only not working when I needed it most! IE when an attacker is probing for `.env` files and the such.
 
-## Current Nginx Configuration
+### Current Nginx Configuration
 
 Let's take a look at my abridged configuration...this is foreshadowing. The problem is present below but trickily not immediately obvious as it is a valid config.
 
