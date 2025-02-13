@@ -119,7 +119,7 @@ comments:
   giscus:
     repo: foxxmd/blog # <gh-username>/<repo>
     repo_id: R_kgDOMQjR4Q
-    category: Announcments
+    category: Announcements
     category_id: DIC_kwDOMQjR4c4Cm8J4
     mapping: pathname # optional, default to 'pathname'
     strict: 0 # optional, default to '0'
