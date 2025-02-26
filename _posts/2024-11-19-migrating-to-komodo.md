@@ -84,15 +84,15 @@ And so is each [Stack](https://komo.do/docs/sync-resources#stack) that should ru
 
 ```toml
 [[stack]]
-name = "test-stack"
-description = "stack test"
+name = "media-arrs"
+description = "Sonarr, Radarr, and the other *arrs"
 deploy = true
 [stack.config]
 server_id = "server-prod" # server from resource above
 file_paths = ["mongo.yaml", "compose.yaml"]
 git_provider = "git.mogh.tech"
 git_account = "mbecker20"
-repo = "mbecker20/stack_test"
+repo = "mbecker20/media-arrs"
 ```
 
 Both of the above configurations:
@@ -128,19 +128,19 @@ This is not limited to standalone containers, either. If you have existing stack
 
 This requirement of explicitly specify all your infrastructure applies to all other Resources in Komodo. At the moment this is a fact of life.
 
-However this should not deter you! Getting all of your lab into a well-defined configuration is something you've been striving for, remember? Do a little bit at a time so it isn't overwhelming. Komodo can co-exist with whatever you've been using up till now so there's all-or-nothing rush.
+However this should not deter you! Getting all of your lab into a well-defined configuration is something you've been striving for, remember? Do a little bit at a time so it isn't overwhelming. Komodo can co-exist with whatever you've been using up till now, there's no all-or-nothing rush to switch over.
 
 #### Unopinionated Resource Storage
 
 The second hurdle is that there is no Best Way™️ to store and backup all of your Resources. Komodo offers three ways to get/set resources:
 
-* Modify directly in UI (Komodo will write to a directory of your choice under its control)
-* Files on Server (existing files you point, it cannot edit them)
-* Git Repo (pull from a repo and optionally write to it if you have access)
+* Modify directly in UI -- Komodo will write to a directory on the host (of your choice) under its control
+* Files on Server -- existing files you point to but it cannot edit them
+* Git Repo -- pull from a repo and optionally write to it if you have access
 
-You can choose which method to use for each Stack and, actually, every Resource individually in Komodo. You could have some Stacks be from existing compose files on your machine and some pull from a Git Repo. Meanwhile, the Komodo Resource sync writes directly to a folder you have mapped somewhere else.
+You can choose which method to use for each Stack _as well as_ every Resource individually in Komodo.
 
-The issue is that these are all valid ways to use Komodo and you have to make the difficult decision of choosing what approach you want to do before you start creating any Resources at all. You should long and hard about what you want to do because going back to modify everything later might end up being a big hassle.
+The problem is that these are all valid ways to use Komodo and you have to make the decision of choosing what approach you want to do before you start creating any Resources. You should think long and hard about what you want to do because going back to modify everything later might end up being a big hassle, [though possible to do in bulk.](#converting-resource-storage-type)
 
 In the guide below I will be using Git Repo for _everything_ but feel free to do it however you want.
 
@@ -175,7 +175,7 @@ This guide will detail the opinionated approach I took to migrate wholly to Komo
 
 I knew I wanted to get all of my stacks and containers backed up somewhere other than my machine. Komodo's full power is taking advantage of a **Git Repo**-based resources so that they can be committed when you save anything in the UI so I knew this is what I wanted. It makes backup coupled to changes so it's basically set-and-forget at the cost of having a potentially noisy git log if you make lots of little changes or tinker with a stack. This was a comprise I thought was worth the peace of mind.
 
-I do use [unraid](https://unraid.net/) and considered standing up Gitea with docker but since we're talking about basic text, github offers free private repos, and I wasn't going to be storing sensitive info there anyways I opted for github so that the backup was truly offsite.
+I use [unraid](https://unraid.net/) and considered standing up Gitea with docker but since we're talking about basic text, github offers free private repos, and I wasn't going to be storing sensitive info there anyways I opted for github so that the backup was truly offsite.
 
 All of my Resources and Stacks would then be Git Repo based.
 
@@ -192,7 +192,7 @@ stacks/
 │   │   └── compose.yaml
 │   └── frigate/
 │       ├── compose.yaml
-│       └── tesnor.compose.yaml
+│       └── tensor.compose.yaml
 ├── server2/
 ├── server3/
 ├── server4/
@@ -215,13 +215,17 @@ I chose to setup Komodo [Core](https://komo.do/docs/setup/mongo) using MongoDB. 
 
 #### Create Komodo Periphery Agents
 
-I created [Periphery agents on all other servers as containers](https://komo.do/docs/connect-servers#install-the-periphery-agent---container). The agent can be installed natively using systemd but I like keeping everything contained to docker so there is less to think about. After each agent is created it's a simple process to add as a [Server](https://komo.do/docs/resources#server) resource in the komodo core interface.
+~~I created [Periphery agents on all other servers as containers](https://komo.do/docs/connect-servers#install-the-periphery-agent---container). The agent can be installed natively using systemd but I like keeping everything contained to docker so there is less to think about.~~
+
+UPDATE: After using Komodo for 3+ months I have changed to using [systemd agents](https://komo.do/docs/connect-servers#install-the-periphery-agent---systemd). I have zero security concerns about using Periphery with user-level access to the Docker daemon and using the non-docker agent makes Docker interactions simpler, IMO.
+
+After each agent is created it's a simple process to add as a [Server](https://komo.do/docs/resources#server) resource in the komodo core interface.
 
 <details markdown="1">
 
 <summary>A Note on Security and Non-Root Periphery</summary>
 
-I prefer to use containers with a non-root user and generally don't like giving unfettered access to `docker.sock`. _This is entirely optional_ but I chose to run Periphery as non-root and provide access to docker via [docker-socket-proxy](https://github.com/linuxserver/docker-socket-proxy).
+I prefer to use containers with a non-root user and generally don't like giving unfettered access to `docker.sock`. _This is entirely optional_ but you can chose to run Periphery as non-root and provide access to docker via [docker-socket-proxy](https://github.com/linuxserver/docker-socket-proxy).
 
 Periphery image can _mostly_ be run normally just by specifying `user` in the compose file but I found this wasn't entirely sufficient. When Komodo uses git it needs to set the email/name for the git user which is normally set (I think) under `root` but when run as non-root this is no longer the case. The solution to this is [supplying a `home` directory inside the container](https://github.com/mbecker20/komodo/issues/128#issuecomment-2423471703) which can be done by building your own periphery image inline.
 
@@ -318,7 +322,7 @@ Now that we have Komodo Core and Periphery agents setup on all our servers, and 
 
 To create a new Stack navigate to `Stacks` in Komodo Core and click **New Stack**. Give the stack a name and create it.
 
-> If you have existing compose projects running on the server you will deploy to then use the name of the folder (if any) the compose files are located in. Komodo will parse that the stack is already running so you don't need to redeploy.
+> If you have existing compose projects running on the server that you will deploy to, then use the name of the folder (if any) the compose files are located in. Komodo will parse that the stack is already running so you don't need to redeploy.
 {: .prompt-tip }
 
 We now need to configure the new Stack so it points to our Git repo so it can find (or create) compose files for our project. In the newely created Stack under `Config`:
@@ -511,13 +515,71 @@ As long as `DOCKER_DATA` is set as an ENV on each host then the compose file bec
 
 To do this you'll need to set this ENV in either the shell used by Periphery (`.bashrc` or `.profile`) or set it in the [systemd configuration](https://www.baeldung.com/linux/systemd-services-environment-variables) for a [systemd periphery agent.](https://github.com/mbecker20/komodo/blob/main/scripts/readme.md#periphery-setup-script)
 
+### Converting Resource Storage Type
+
+While not a first-class feature, it is possible to convert Resources between UI Defined, Files on Server, and Git Repo based storage without having to manually recreate them in the UI. There should be better support for this in [version 1.17](https://discord.com/channels/1272479750065094760/1272479750065094763/1340120174224740425) but it's still not "official" by any metric.
+
+First, make sure the Resources you want to convert are backed by a [Resource Sync](https://komo.do/docs/sync-resources#resource-sync). You should be able to see your Resource in the created TOML of the Sync like so (example of a files-on-server Resource):
+
+```toml
+[[stack]]
+name = "test"
+[stack.config]
+server = "myServer"
+files_on_host = true
+run_directory = "path/to/stack"
+# ... maybe more stuff here
+
+[[stack]]
+name = "test2"
+# ...
+```
+{: file='sync.toml'}
+
+Next, make (or find an example of) a Resource of the type you want to convert to. The example below is a Git Repo resource:
+
+```toml
+[[stack]]
+name = "test"
+[stack.config]
+server = "myServer"
+run_directory = "path/to/stack"
+git_account = "MyUser"
+repo = "MyUser/my-repo"
+```
+
+You can see that the diference between the files-on-server and git-repo resource are only two lines, `repo` and `git_account`. Assuming the `run_directory` is the same (it likely wouldn't be) then all you'd need to do is add those two lines to each Stack to convert in your sync toml. It will still require some manual work but with a decent text editor you could use bulk find-and-replace, regex, or multi-cursor to cut down the repetitive actions.
+
+After making your edits, save the sync toml. Then, refresh the Sync Resource in Komodo. You should see a large list of changes appear. Do **Execute Changes** to have Komodo re-deploy all your stacks with the updated storage type.
+
 ### Alternatives for Komodo's Missing Features
 
 Komodo is in active development and while the goal is to have good feature parity with Portainer/Dockge it is still missing some conveniences. Komodo's author is _hard_ at work implementing missing features and the speed of development is quite frankly insane but in the meantime try these out to make up for missing features:
 
-##### Real-time Logging
+#### Real-time Logging
 
 Use [Dozzle](https://dozzle.dev/) to monitor logging for containers and stacks. It supports merging all stack containers together as well as monitoring containers from multiple machines.
+
+#### Notifications
+
+Komodo uses [Alerter](https://komo.do/docs/resources#alerter) resources to handle notifications for all types of things: Host metrics (cpu, mememory, storage levels), image updates, deploy failures, etc...
+
+It has built-in support for Slack and Discord but if you want more options you need to use the **Custom** endpoint along with an app that can ingest the Alerter payload.
+
+I have written several apps to expand notification support to popular self-hosted notification platforms and included some nice QoL features:
+
+* Map Komodo Alert Severity (ok, warning, critical) to notification priority
+* Add Alert Severity to notification title
+* Add resolved status to notification title
+* Filter by resolved status
+* Debounce based on resolved status (wait for X seconds and cancel notification if alert is resolved within time)
+
+Available platforms:
+
+* [ntfy](https://github.com/FoxxMD/deploy-ntfy-alerter)
+* [gotify](https://github.com/FoxxMD/deploy-gotify-alerter)
+* [discord](https://github.com/FoxxMD/deploy-discord-alerter) (more customization than built-in discord)
+* [apprise](https://github.com/FoxxMD/deploy-apprise-alerter) (can be used to notify to any of the [100+ providers apprise supports](https://github.com/caronc/apprise/wiki#notification-services) including email)
 
 ___
 
