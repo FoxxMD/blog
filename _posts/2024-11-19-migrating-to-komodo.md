@@ -134,8 +134,8 @@ However this should not deter you! Getting all of your lab into a well-defined c
 
 The second hurdle is that there is no Best Way™️ to store and backup all of your Resources. Komodo offers three ways to get/set resources:
 
-* Modify directly in UI -- Komodo will write to a directory on the host (of your choice) under its control
-* Files on Server -- existing files you point to but it cannot edit them
+* UI Defined -- Komodo will write to a subfolder in its own (controlled) directories
+* Files on Server -- existing files/folders on a host, outside of Komodo's own directories, you point to
 * Git Repo -- pull from a repo and optionally write to it if you have access
 
 You can choose which method to use for each Stack _as well as_ every Resource individually in Komodo.
