@@ -372,7 +372,7 @@ Before stopping/destroying your old containers and starting the new Stack read t
 
 #### Environmental Variables and Secrets
 
-The **Environment** section in your Stack's `Config` tab will pass ENVs to the _compose_ command used to create the stack. Note that this is different than ENVs passed to each service: the Stack `Environment` variables are [only for use in `compose.yaml`](https://docs.docker.com/compose/how-tos/environment-variables/variable-interpolation/) unless you explicitly set them in the compose files `environment:` section of each service.
+The **Environment** section in your Stack's `Config` tab will pass ENVs to the _compose_ command used to create the stack. Note that this is different than ENVs passed to each service: the Stack `Environment` variables are [only for use in `compose.yaml`](https://docs.docker.com/compose/how-tos/environment-variables/variable-interpolation/) unless you explicitly set them in each service's `environment:` section or use [`env_file: .env`](https://docs.docker.com/compose/how-tos/environment-variables/variable-interpolation/#env-file).
 
 <details markdown="1">
 
