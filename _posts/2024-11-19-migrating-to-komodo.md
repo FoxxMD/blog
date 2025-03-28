@@ -372,7 +372,7 @@ Before stopping/destroying your old containers and starting the new Stack read t
 
 #### Environmental Variables and Secrets
 
-The **Environment** section in your Stack's `Config` tab will pass ENVs to the _compose_ command used to create the stack. Note that this is different than ENVs passed to each service: the Stack `Environment` variables are [only for use in `compose.yaml`](https://docs.docker.com/compose/how-tos/environment-variables/variable-interpolation/) unless you explicitly set them in each service's `environment:` section or use [`env_file: .env`](https://docs.docker.com/compose/how-tos/environment-variables/variable-interpolation/#env-file).
+The **Environment** section in your Stack's `Config` tab will pass ENVs to the _compose_ command used to create the stack. Note that this is different than ENVs passed to each service: the Stack `Environment` variables are [only for use in `compose.yaml`](https://docs.docker.com/compose/how-tos/environment-variables/variable-interpolation/) unless you explicitly set them in each service's `environment:` section or use [`env_file: .env`](https://docs.docker.com/compose/how-tos/environment-variables/set-environment-variables/#use-the-env_file-attribute).
 
 <details markdown="1">
 
@@ -421,6 +421,9 @@ VARFUN=Bar
 * it will have `MyOtherEnv=Bar` available in the container
 
 </details>
+
+> A more thorough explanation of how Docker Compose handles variables and ENVs, along with runnable example compose files, [can be found here.](https://github.com/FoxxMD/compose-env-interpolation-example) If you do not have a good grasp of `.env` `--env-file` `environment:` and `env_file:` usage/hierarchy in Docker Compose I would **highly recommend** reading it as it will save you a headache later.
+{: .prompt-tip }
 
 Komodo stores the contents of `Environment` in a `.env` located next to the created compose files for the Stack. Additionally, if you use [Resource Sync](#resource-sync) it will store the contents alongside the rest of the Stack configuration so it is best to **not** put sensitive data in Environment and instead use [Secrets interpolation to pass that data through ENV.](https://komo.do/docs/variables)
 
