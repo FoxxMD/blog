@@ -22,7 +22,7 @@
         "stylelint.vscode-stylelint",
         "yzhang.markdown-all-in-one",
         // Git
-        "mhutchie.git-graph"
+        "eamodio.gitlens"
       ]
     }
   }
