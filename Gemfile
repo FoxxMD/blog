@@ -2,10 +2,13 @@
 
 source "https://rubygems.org"
 
-gem "jekyll-theme-chirpy", "~> 7.0", ">= 7.0.1"
+gem "jekyll-theme-chirpy", "~> 7.2", ">= 7.2.3"
 
-group :test do
-  gem "html-proofer", "~> 5.0"
+gem "html-proofer", "~> 5.0", group: :test
+
+platforms :mingw, :x64_mingw, :mswin, :jruby do
+  gem "tzinfo", ">= 1", "< 3"
+  gem "tzinfo-data"
 end
 
-#gem "jekyll-analytics", "~> 0.1", git: 'https://github.com/hendrikschneider/jekyll-analytics', ref: '40e09570dea80e3a9ecb0ad796aad1c434ff067c'
+gem "wdm", "~> 0.2.0", :platforms => [:mingw, :x64_mingw, :mswin]
