@@ -44,6 +44,8 @@ command="$command -H $host"
 
 if $prod; then
   command="JEKYLL_ENV=production $command"
+else
+  command="$command --incremental"
 fi
 
 if [ -e /proc/1/cgroup ] && grep -q docker /proc/1/cgroup; then
