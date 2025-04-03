@@ -79,7 +79,7 @@ Komodo does not yet support container exec but it a [popular requested feature.]
 
 ### Environmental Variables/Secrets don't work! {#env-and-variables}
 
-This is likely a misunderstanding of how [Compose file interpolation](https://docs.docker.com/compose/how-tos/environment-variables/variable-interpolation/#env-file) and [environmental variables in Compose](https://docs.docker.com/compose/how-tos/environment-variables) work. Please read [**this guide**](https://github.com/FoxxMD/compose-env-interpolation-example) for a better understanding of how `.env` `--env-file` `env_file:` and `environment:` work in Docker *as well as* how [Komodo fits into them.](https://github.com/FoxxMD/compose-env-interpolation-example?tab=readme-ov-file#komodo-and-envs)
+This is likely a misunderstanding of how [Compose file interpolation](https://docs.docker.com/compose/how-tos/environment-variables/variable-interpolation/#env-file) and [environmental variables in Compose](https://docs.docker.com/compose/how-tos/environment-variables) work. Please read [**this guide**](../compose-envs-explained) for a better understanding of how `.env` `--env-file` `env_file:` and `environment:` work in Docker *as well as* how [Komodo fits into them.](../compose-envs-explained#komodo-and-envs)
 
 ### How do I deploy a service that doesn't have a published Docker Image? {#no-published-docker-image}
 

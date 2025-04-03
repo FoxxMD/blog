@@ -422,7 +422,7 @@ VARFUN=Bar
 
 </details>
 
-> A more thorough explanation of how Docker Compose handles variables and ENVs, along with runnable example compose files, [can be found here.](https://github.com/FoxxMD/compose-env-interpolation-example) If you do not have a good grasp of `.env` `--env-file` `environment:` and `env_file:` usage/hierarchy in Docker Compose I would **highly recommend** reading it as it will save you a headache later.
+> A more thorough explanation of how Docker Compose handles variables and ENVs, along with runnable example compose files, [can be found here.](../compose-envs-explained) If you do not have a good grasp of `.env` `--env-file` `environment:` and `env_file:` usage/hierarchy in Docker Compose I would **highly recommend** reading it as it will save you a headache later.
 {: .prompt-tip }
 
 Komodo stores the contents of `Environment` in a `.env` located next to the created compose files for the Stack. Additionally, if you use [Resource Sync](#resource-sync) it will store the contents alongside the rest of the Stack configuration so it is best to **not** put sensitive data in Environment and instead use [Secrets interpolation to pass that data through ENV.](https://komo.do/docs/variables)
