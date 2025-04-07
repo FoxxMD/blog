@@ -270,6 +270,71 @@ alias dex="~/dex.sh"
 
 </details>
 
+### Docker Data Agnostic Location
+
+One of the benefits to Komodo is being able to re-deploy a stack to any Server with basically one click. What isn't so easy, though, is moving (or generally locating) any persistent data that needs to be mounted into those services. 
+
+If you use named volumes and have a backup strategy already this is a moot point but if you are like me and use [bind mounts](https://docs.docker.com/engine/storage/bind-mounts/) I found a good approach is to use a host-specific ENV as a directory prefix when writing compose files. 
+
+This has the advantage of making the compose bind mount location agnostic to the host it is on and makes moving data, or rebuilding a host, much easier since compose files don't need to be modifed if the data location changes parent directories.
+
+An example:
+
+```yaml
+services:
+  my-service:
+    image: #...
+    volumes:
+      - $DOCKER_DATA/my-service-data:/app/data
+```
+{: file='compose.yaml'}
+
+As long as `DOCKER_DATA` is set as an ENV on each host then the compose file becomes storage location agnostic. It doesn't matter whether you use `/home/MyUser/docker` or `/opt/docker` or whatever.
+
+To do this you'll need to set this ENV in either the shell used by Periphery (`.bashrc` or `.profile`), set in the Periphery's docker container ENVs, or set it in the [systemd configuration](https://www.baeldung.com/linux/systemd-services-environment-variables) for a [systemd periphery agent.](https://github.com/mbecker20/komodo/blob/main/scripts/readme.md#periphery-setup-script)
+
+<details markdown="1">
+
+<summary>Setting ENV for systemd periphery</summary>
+
+**For systemd periphery** check which [`periphery.service` install path](https://github.com/moghtech/komodo/tree/main/scripts) you used and then add a folder `periphery.service.d` with file `override.conf` with the contents:
+
+```
+[Service]
+Environment="DOCKER_DATA=/home/myUser/docker-data"
+```
+
+and then restart the periphery service
+
+EX
+
+```
+/home/foxx/.config/systemd/user/periphery.service <--- systemd unit for periphery
+/home/foxx/.config/systemd/user/periphery.service.d/override.conf  <--- config to provide `Environment`
+```
+
+</details>
+
+<details markdown="1">
+
+<summary>Setting ENV for docker periphery</summary>
+
+**For docker periphery** container make sure you add `DOCKER_DATA` to your environment:
+
+```yaml
+services:
+  periphery:
+    image: ghcr.io/moghtech/komodo-periphery:latest
+    # ...
+    environment:
+      # ...
+      DOCKER_DATA: /home/myUser/docker-data
+```
+
+and then restart the periphery container.
+
+</details>
+
 ___
 
 
