@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+apt update && apt install webp imagemagick -y
+
 if [ -f package.json ]; then
   bash -i -c "nvm install --lts && nvm install-latest-npm"
   npm i
