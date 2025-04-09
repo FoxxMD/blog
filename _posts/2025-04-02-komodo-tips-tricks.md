@@ -335,6 +335,67 @@ and then restart the periphery container.
 
 </details>
 
+### Monitoring Services with Komodo and Uptime Kuma
+
+[Uptime Kuma](https://uptime.kuma.pet/) has the _Docker Container_ monitor type but using Komodo's API has the advantage of being able to monitor a Stack/Service status **independent of what Server it is deployed to and what the container name is.**
+
+#### Prerequisites
+
+You'll need an **API Key and Secret** for a Komodo User. (Settings -> Users -> Select User -> Api Keys section)
+
+I would recommend creating a new "Read Only" Service User. Give it only permissions for Server/Stack Read. Create the API Key and copy the Secret as it will not be shown again.
+
+#### Create Uptime Kuma Monitor
+
+Create a new Monitor with the type `HTTP(s) - Json Query`
+
+##### HTTP Options
+
+* Method: `POST`
+* Body Encoding: `JSON`
+
+##### Body
+
+Visit the Stack in Komodo UI and copy the ID after `/stacks/` from the URL. Use it in `stack` value below:
+
+```json
+{
+    "type": "ListStackServices",
+    "params": {
+        "stack": "67913976afe9cffd0fa1f963"
+    }
+}
+```
+
+##### Headers
+
+Use the Api Key and Secret created earlier:
+
+```json
+{
+    "X-Api-Key": "YourKey",
+    "X-Api-Secret": "YourSecret"
+}
+```
+
+##### URL
+
+```
+http://YOUR_KOMODO_SERVER/read
+```
+
+##### Json Query / Expected Value
+
+To monitor **all** services in the stack and report UP only if **all** are running
+
+* Json Query: `$count($.container[state!='running'].state ) = 0`
+* Expected Value: `true`
+
+To monitor a **specific** service in the stack and report UP if it is running
+
+* Json Query: `$[service="SERVICE_NAME_FROM_COMPOSE"].container.state`
+* Expected Value: `running`
+  
 ___
 
 
