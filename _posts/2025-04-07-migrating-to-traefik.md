@@ -90,17 +90,57 @@ https://go-acme.github.io/lego/dns/cloudflare/
 
 ### Crowdsec Integration
 
-https://doc.traefik.io/traefik/providers/file/#go-templating
-https://masterminds.github.io/sprig/ --> https://masterminds.github.io/sprig/os.html
+Configuring Traefik to use [Crowdsec](https://www.crowdsec.net/) (CS) as a bouncer within Traefik is similar to SWAG but the actual setup of CS (containers, acquisition) is different.
 
-https://github.com/maxlerebourg/crowdsec-bouncer-traefik-plugin
+How SWAG does it:
 
-#### Access Logs
+* [LSIO blog post on standing up a CS instance configured for Nginx/SWAG](https://www.linuxserver.io/blog/blocking-malicious-connections-with-crowdsec-and-swag)
+* [LSIO docker mod `swag-crowdsec`](https://github.com/linuxserver/docker-mods/tree/swag-crowdsec) installs crowdsec lua module for use in nginx
 
-Using custom json format to prevent buffering, drop headers, and keep user agent
+How traefik does it:
+
+* Given an existing crowdsec instance, traefik uses a [plugin](https://doc.traefik.io/traefik/plugins/) [maxlerebourg/crowdsec-bouncer-traefik-plugin](https://github.com/maxlerebourg/crowdsec-bouncer-traefik-plugin) that implements a [bouncer](https://docs.crowdsec.net/u/user_guides/bouncers_configuration/) that can be used as a middleware
+
+#### Crowdsec Architecture
+
+My CS setup is *verbose*:
+
+* Traefik container
+  * Uses crowdsec-bouncer-plugin for middleware
+  * Writes [access logs](https://doc.traefik.io/traefik/observability/access-logs/) to rotating log file using [vegardit/docker-traefik-logrotate](https://github.com/vegardit/docker-traefik-logrotate)
+* Basic alpine container `tail`s access logs to output (referred to below as `log-tail`)
+  * [docker-socket-proxy](https://docs.linuxserver.io/images/docker-socket-proxy/) is used to expose `tail` container over the network
+* Crowdsec
+  * [**Decision (Local API)**](https://docs.crowdsec.net/docs/next/concepts) instance of `crowdsecurity/crowdsec` docker image (referred to below as `crowdsec`)
+    * Used by crowdsec-bouncer-plugin
+  * [**Ingest (Log Processor)**](https://docs.crowdsec.net/docs/next/concepts) instance of `crowdsecurity/crowdsec` docker image (referred to below as `crowdsec-ingest`) configured as a [**child** log processor](https://www.crowdsec.net/blog/multi-server-setup)
+    * Processes logs `log-tail` container and feeds decisions back to `crowdsec`
+
+The majority of the above could be consolidated into one CS container, CS config, and your main traefik container. The reason it is broken out into so many components:
+
+* Separating access logs from regular Traefik logs
+  * Troubleshooting traefik-specific issues from logs is much easier (less noise in container logs)
+  * Write to file persists access logs after restart
+* Exposing/using `log-tail` container enables
+  * [traefik log acquistion](https://docs.crowdsec.net/docs/next/log_processor/data_sources/docker) to be done with a docker connection locally or remotely, and by container name. Instead of needing to mount log folders/files into a crowdsec container (locally only) and having to deal with permissions.
+  * access logs are consumable/viewable in other apps (when using `json` access log format, readable in [Dozzle](https://dozzle.dev/) or Logdy)
+* Separate Crowdsec LAPI/log processor instances:
+  * In high-traffic environments log processing can be CPU intensive while bouncer-decision communication is relatively light
+    * `crowdsec-ingest` can be deployed to a more powerful machine and its config is simplified compared to full LAPI config
+    * `crowdsec` can be deployed to a lower power/more stable machine, or next to traefik
+      * if `crowdsec-ingest` bottlenecks to high volume, or crashes, `crowdsec` will still operate and traefik will still get decisions
+
+From real-world experience this setup scales *much better* than a single CS instance. Feel free to consolidate any of the below setup if this setup is too overkill for you, though.
+
+#### Setup Access Logs {#access-logs}
+
+Configure traefik to output access logs, make sure files are rotated, and expose logs as a docker container.
+
+In your traefik [static config](https://doc.traefik.io/traefik/getting-started/configuration-overview/#the-static-configuration)[^static_mount] add:
 
 ```yaml
 accessLog:
+# Using custom json format to prevent buffering, drop headers, and keep user agent
   filePath: "/var/log/traefik/access.log"
   format: json
   # filters:
@@ -115,21 +155,249 @@ accessLog:
       names:
           User-Agent: keep # log user agent strings
 ```
+{: file="/etc/traefik/traefik.yaml" }
 
-Using [vegardit/docker-traefik-logrotate](https://github.com/vegardit/docker-traefik-logrotate) to keep log files manageable.
+Make sure to mount the log dir to your host filesystem:
 
-A simple alpine container tails logs to stdout (docker logs) and crowdsec ingests this via a docker-socket-proxy connection.
+```yaml
+services:
+  traefik:
+  # ...
+    volumes:
+      # ...
+      - $DOCKER_DATA/traefik/log:/var/log/traefik:rw
+```
+{: file="compose.yaml" }
 
+Then add the rest of the access log functionality to `compose.yaml`
+
+```yaml
+services:
+  traefik:
+  # ...
+    volumes:
+      # ...
+      - $DOCKER_DATA/traefik/log:/var/log/traefik:rw
+    # ...
+
+  logrotate:
+    image: vegardit/traefik-logrotate:latest
+    network_mode: none
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:rw # required to send USR1 signal to Traefik after log rotation
+      - $DOCKER_DATA/traefik/log:/var/log/traefik:rw # folder containing access.log file
+    environment:
+      TZ: "America/New_York"
+      # all environment variables are optional and show the default values:
+      LOGROTATE_LOGS: "/var/log/traefik/*.log" # log files to rotate, directory must match volume mount
+      LOGROTATE_TRIGGER_INTERVAL: daily  # rotate daily, must be one of: daily, weekly, monthly, yearly
+      LOGROTATE_TRIGGER_SIZE: 50M        # rotate if log file size reaches 50MB
+      LOGROTATE_MAX_BACKUPS: 7          # keep 14 backup copies per rotated log file
+      LOGROTATE_START_INDEX: 1           # first rotated file is called access.1.log
+      LOGROTATE_FILE_MODE: 0644          # file mode of the rotated file
+      LOGROTATE_FILE_USER: root          # owning user of the rotated file
+      LOGROTATE_FILE_GROUP: root         # owning group of the rotated file
+      CRON_SCHEDULE: "* * * * *"
+      CRON_LOG_LEVEL: 8                  # see https://unix.stackexchange.com/a/414010/378036
+      # command to determine the id of the container running Traefik:
+      TRAEFIK_CONTAINER_ID_COMMAND: docker ps --no-trunc --quiet --filter label=org.opencontainers.image.title=Traefik
+  tail-log:
+    image: alpine
+    # name that will be used in aquis.yaml
+    container_name: tail-log
+    volumes:
+      - $DOCKER_DATA/traefik/log:/var/log:ro
+    command: >
+      sh -c "tail -F /var/log/access.log"
+    network_mode: none
+    restart: unless-stopped
+  socket-proxy:
+    image: lscr.io/linuxserver/socket-proxy:latest
+    container_name: socket-proxy
+    environment:
+      - CONTAINERS=1
+      - POST=0
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    ports:
+      - 2375:2375
+    restart: always
+    read_only: true
+    tmpfs:
+      - /run
+```
+{: file="compose.yaml" }
+
+#### Setup Crowdsec Local API {#crowdsec-local-api}
+
+```yaml
+services:
+  crowdsec:
+    image: "crowdsecurity/crowdsec:latest"
+    environment:
+      - "CUSTOM_HOSTNAME=cs-decision"
+      - "GID=1000"
+      - "LEVEL_INFO=true"
+      - "TZ=America/New_York"
+    ports:
+      - "4242:4242/tcp"
+      - "6060:6060/tcp"
+      - "8080:8080/tcp"
+    restart: "always"
+    volumes:
+      - "$DOCKER_DATA/crowdsec/config:/etc/crowdsec"
+      - "$DOCKER_DATA/crowdsec/data:/var/lib/crowdsec/data"
+      - "$DOCKER_DATA/crowdsec/logs:/var/log/crowdsec"
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+```
+{: file="compose.yaml" }
+
+Start the service and exec into the container.
+
+```shell
+docker container exec -it crowdsec-crowdsec-1 /bin/sh
+```
+
+Then, add a new **machine** so our child log processor can login.
+
+```shell
+cscli machines add MyChildMachine --auto
+```
+
+`MyChildMachine` is the username for the machine and the command will output a **LAPI password**. Save this for the next step.
+
+Then, add a new bouncer that will be used with traefik.
+
+```
+cscli bouncers add MyBouncerName
+```
+
+This command will output a **bouncer key**. Save this for [traefik bouncer setup.](#traefik-bouncer-setup)
+
+#### Setup Crowdsec Child Log Processor {#crowdsec-child-setup}
+
+```yaml
+  crowdsec-ingest:
+    image: "crowdsecurity/crowdsec:latest"
+    environment:
+      - "COLLECTIONS=crowdsecurity/linux crowdsecurity/traefik crowdsecurity/whitelist-good-actors"
+      # known to have false positives and is CPU intensive
+      - "DISABLE_SCENARIOS=crowdsecurity/http-bad-user-agent"
+      # improves regex performance
+      - "CROWDSEC_FEATURE_RE2_GROK_SUPPORT=true"
+      - "CUSTOM_HOSTNAME=cs-ingest"
+      - "GID=1000"
+      # important to make this a worker
+      - "DISABLE_LOCAL_API=true"
+      - "LEVEL_INFO=true"
+      - "LOCAL_API_URL=http://CS_LAPI_INSTANCE_HOST_IP:8080"
+    ports:
+      - "6061:6060/tcp"
+    restart: "always"
+    volumes:
+      - "$DOCKER_DATA/crowdsec-ingest/config:/etc/crowdsec"
+      - "$DOCKER_DATA/crowdsec-ingest/data:/var/lib/crowdsec/data"
+      - "$DOCKER_DATA/crowdsec-ingest/logs:/var/log/crowdsec"
+```
+{: file="compose.yaml" }
+
+> This service can be added to the Local API stack above if they are running on the same machine
+{: .prompt-tip }
+
+Start the service to generate all of the default configuration files. Then stop the service and edit these files:
+
+Set `api.server.enable: false` in `/etc/crowdsec/config.yaml`
+```yaml
+# ...
+api:
+  # ...
+  server:
+    # ...
+    enable: false
+```
+{: file="/etc/crowdsec/config.yaml" }
+
+Modify `/etc/crowdsec/local_api_credentials.yaml` to use the username/**LAPI password** we got in the [previous step.](#crowdsec-local-api)
+
+```yaml
+url: http://CROWDSEC_LOCAL_API_HOST:8080
+login: MyChildMachine
+password: 9W0Mtyh5lJ1Hks29BxN4arPKA06t264J8TvIh9Uxu1fyHAVGO22AcWNbx8Oh4tJ
+```
+
+Finally, modify `/etc/crowdsec/acquis.yaml` to add the docker data source for our `tail-log` container that is [streaming traefik access logs:](#access-logs)
 
 ```yaml
 source: docker
 container_name:
- - traefik-external-traefik-access-logs-1
-docker_host: tcp://192.168.CONTAINER.IP:2375
+ - tail-log
+docker_host: tcp://TRAEFIK_HOST_IP:2375
 labels:
   type: traefik
   ```
 {: file="acquis.yaml" }
+
+Now `crowdsec-ingest` can be restarted and should be processing traefik logs as well as reporting to CS Local API.
+
+#### Setup Traefik Crowdsec Bouncer {#traefik-bouncer-setup}
+
+Add the `crowdsec` service IP and **bouncer key**, [generated earlier](#crowdsec-local-api), to traefik as environmental variables.
+
+```yaml
+  traefik:
+    image: "traefik:v3.3"
+    # ...
+    environment:
+      # ...
+      # better in .env or as secret
+      CS_TRAEFIK_BOUNCER_KEY: o2siyq4Dt92N9sQCbiRVIHjXWstr5jIwU7Puhxws
+      BOUNCER_HOST: CROWDSEC_LOCAL_API_HOST:PORT
+```
+{: file="compose.yaml"}
+
+Add the [crowdsec-bouncer-traefik-plugin](https://github.com/maxlerebourg/crowdsec-bouncer-traefik-plugin) to your traefik [static config](https://doc.traefik.io/traefik/getting-started/configuration-overview/#the-static-configuration).
+
+```yaml
+experimental:
+  plugins:
+    # ...
+    csbouncer:
+      moduleName: github.com/maxlerebourg/crowdsec-bouncer-traefik-plugin
+      version: "v1.4.0"
+```
+{: file="/etc/traefik/traefik.yaml"}
+
+Create a new middleware in your traefik [dynamic config](#cf-real-ip-forwarding) that configures the CS plugin. We use [go templating](https://doc.traefik.io/traefik/providers/file/#go-templating) to [get the ENVs](https://masterminds.github.io/sprig/os.html) we set in the compose service earlier.
+
+```yaml
+http:
+  middlewares:
+    # ...
+    crowdsec:
+      plugin:
+        csbouncer:
+          #logLevel: DEBUG
+          enabled: true
+          httpTimeoutSeconds: 2
+          # ban page can be enabled by manually copying ban.html https://github.com/maxlerebourg/crowdsec-bouncer-traefik-plugin
+          # to a directory accessible to traefik container
+          #banHTMLFilePath: /config/ban.html
+          {% raw %}crowdsecLapiKey: '{{ env "CS_TRAEFIK_BOUNCER_KEY" }}'
+          crowdsecLapiScheme: http
+          crowdsecLapiHost: '{{ env "BOUNCER_HOST" }}'{% endraw %}
+          # optional but necessary if using cloudflare dns proxy/tunnel
+          forwardedHeadersTrustedIPs: 
+            - 172.28.0.1/24 
+          # skip bouncing if request is from this IP range   
+          clientTrustedIPs: 
+            - 192.168.0.0/24
+```
+{: file="/config/global.yaml"}
+
+Then, add the middleware `crowdsec@file` to [entrypoints](https://doc.traefik.io/traefik/routing/entrypoints/) to have it applied to all routes or add it to [specific routes.](https://doc.traefik.io/traefik/routing/routers/#middlewares)
+
+Finally, restart traefik to have crowdsec enabled and in use!
+
 
 ### Cloudflare Tunnels Integration
 
