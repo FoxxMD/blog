@@ -133,9 +133,214 @@ labels:
 
 ### Cloudflare Tunnels Integration
 
-https://github.com/PseudoResonance/cloudflarewarp Real IP
+CF Tunnels setup is markedly different than SWAG but functionally the same once setup.
 
-cf tunnel container using config from dashboard, host is traefik container name
+For CF Tunnels with SWAG there are two [LSIO docker mods](https://docs.linuxserver.io/general/container-customization/#docker-mods) that are used:
+
+* [`universal-cloudflared`](https://github.com/linuxserver/docker-mods/tree/universal-cloudflared) - Installs `cloudflared` directly into the SWAG container and uses `CF_*` ENVs to automate setup via CLI (or `CF_REMOTE_MANAGE_TOKEN` to pull config from CF dashboard)
+* [`cloudflare_real-ip`](https://github.com/linuxserver/docker-mods/tree/swag-cloudflare-real-ip) - pulls CF edge server IPs into a list that Nginx can use. It also requires adding a few Nginx directives to your config in order to use this list to set real IP.
+
+We can achieve the same as above by setting up `cloudflared` as its own container and using a the [traefik plugin](https://doc.traefik.io/traefik/plugins/) [cloudflarewarp](https://github.com/PseudoResonance/cloudflarewarp) to parse CF edge server IPs.
+
+#### `cloudflared` Tunnel Container Setup
+
+My opinionated approach is to do all Tunnel config in the CF Dashboard. This makes compose setup easier and enables `cloudflared` to automatically check for and applies config changes from dashboard so no container restarts are needed.
+
+First, acquire your tunnel token by [creating a tunnel](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/get-started/create-remote-tunnel/) or using **Refresh Token** from the tunnel Overview tab, if you didn't save it initially on creation.
+
+Next, setup the `cloudflared` container in your traefik stack:
+
+```yaml
+services:
+  traefik:
+    image: "traefik:v3.3"
+    networks:
+      - traefik_internal
+    volumes:
+    # how i get dynamic/static configs into traefik, can do this however you want
+      - $DOCKER_DATA/traefik/static_config:/etc/traefik:rw
+      - $DOCKER_DATA/traefik/dynamic_config:/config/dynamic:rw    
+    # ...  
+  cloudflare_tunnel:
+    image: cloudflare/cloudflared:2025.2.0
+    networks:
+      - traefik_internal
+    restart: unless-stopped
+    # configure tunnel in cloudflare dashboard and use token from dashboard to configure container
+    command: tunnel run --token ${CF_TRAEFIK_TUNNEL_TOKEN}
+networks:
+  traefik_internal:
+    driver: bridge
+    ipam:
+    # important to set this so cloudflare_tunnel always has correct subnet
+    # for traefik to recognize as trusted IP range
+      config:
+        - subnet: 172.28.0.0/16
+```
+{: file="compose.yaml" }
+
+Setting up the `traefik_internal` network with a static subnet will be important for CF IP forwarding later.
+
+#### Traefik CF Entrypoint
+
+Now we need to 1) tell Traefik to accept CF Tunnel traffic on an [entrypoint](https://doc.traefik.io/traefik/routing/entrypoints/) and 2) tell CF Tunnel to forward traffic to that entrypoint.
+
+In your traefik [static config](https://doc.traefik.io/traefik/getting-started/configuration-overview/#the-static-configuration)[^static_mount] configure an entrypoint with a port and [forwarded headers](https://doc.traefik.io/traefik/routing/entrypoints/#forwarded-headers) so traefik knows to use CF IP as "request from" IP, rather than the `cloudflared` container internal IP. We will then use this later to get the [actual "request from" IP.](#cf-real-ip-forwarding)
+
+[^static_mount]: I use a yaml file mounted into `/etc/traefik` in the container because it's easier to configure but this can be done however you want.
+
+```yaml
+providers:
+  file:
+    directory: /config/dynamic
+    watch: true
+entryPoints:
+  cf:
+    # address CF tunnel config is pointed to on traefik container
+    address: :808
+    # if this is the only entrypoint this needs to be true
+    asDefault: true
+    # this needs to be on the entrypoint you are using for cf tunneled services
+    # must match traefik_internal network
+    forwardedHeaders:
+      trustedIPs:
+        - 172.28.0.1/24
+```
+{: file="/etc/traefik/traefik.yaml" }
+
+Then, setup your tunnel's **Public Hostname** entries with the service pointing to
+
+```
+http://traefik:808
+```
+
+![Cloudflare Tunnel Dashboard](/assets/img/traefik/cf_config.png)
+_Domain and wildcard entries with service URL_
+
+The domain `traefik` should be the same as whetever you have the *service name* of traefik as in your [compose stack.](#cloudflared-tunnel-container-setup)
+
+#### CF Real IP Forwarding
+
+Finally, we need to configure traefik to substitute the value of the header `Cf-Connecting-IP` CF Tunnel attaches to our traffic into the `X-Forwarded-For` header. This will ensure that logs/metrics and downstream applications see the IP of the actual origin host rather than CF's edge server IPs.
+
+To this we first install the [traefik plugin](https://doc.traefik.io/traefik/plugins/) [cloudflarewarp](https://github.com/PseudoResonance/cloudflarewarp) by defining it in our **static config**:
+
+```yaml
+# add this to the /etc/traefik/traefik.yaml example above
+experimental:
+  plugins:
+    cloudflarewarp:
+      moduleName: "github.com/PseudoResonance/cloudflarewarp"
+      version: "v1.4.0"
+```
+{: file="/etc/traefik/traefik.yaml" }
+
+Then, define a middleware that uses the plugin *somewhere* in a [dynamic config.](https://doc.traefik.io/traefik/providers/overview/) I prefer to keep my "globally" used dynamic config in a [file](https://doc.traefik.io/traefik/providers/file/) defined by [directory in static config](https://doc.traefik.io/traefik/providers/file/#directory) rather than defining in a random container label.
+
+> * [`providers.files.directory`](#traefik-cf-entrypoint) in static config defines directory in container for dynamic configs
+> * dynamic config dir `/config/dynamic` is [mounted in the container](#cloudflared-tunnel-container-setup)
+{: .prompt-tip }
+
+```yaml
+http:
+  middlewares:
+    cloudflarewarp:
+      plugin:
+        cloudflarewarp:
+          disableDefault: false
+```
+{: file="/config/dynamic/global.yaml" }
+
+To use with the entrypoint we setup earlier in our static config add `entryPoints.cf.http.middlewares` with our middlename@provider:
+
+```yaml
+# ... building on previous static config
+# ...
+entryPoints:
+  cf:
+    # ...
+    # will always run if service/router is using cf entrypoint
+    # otherwise, this middleware can be ommited here and instead used per service/router as a middleware
+     middlewares:
+       - cloudflarewarp@file
+   # ...
+```
+{: file="/etc/traefik/traefik.yaml" }
+
+Now traefik will the plugin to get a list of CP edge server IPs that can be trusted for Real IP. It will use this list to overwite `X-Real-IP` and `X-Forwarded-For` with an IP from the CF-Connecting-IP header.
+
+#### Full CF Tunnel Example
+
+<details markdown="1">
+
+```yaml
+services:
+  traefik:
+    image: "traefik:v3.3"
+    networks:
+      - traefik_internal
+    # ... whatever else you do to config traefik
+    volumes:
+    # ... how i get dynamic/static configs into traefik, can do this however you want
+      - $DOCKER_DATA/traefik/static_config:/etc/traefik:rw
+      - $DOCKER_DATA/traefik/dynamic_config:/config/dynamic:rw    
+  cloudflare_tunnel:
+    image: cloudflare/cloudflared:2025.2.0
+    restart: unless-stopped
+    # configure tunnel in cloudflare dashboard and use token from dashboard to configure container
+    command: tunnel run --token ${CF_TRAEFIK_TUNNEL_TOKEN}
+    networks:
+        - traefik_internal
+networks:
+  traefik_internal:
+    driver: bridge
+    ipam:
+    # important to set this so cloudflare_tunnel always has correct subnet
+    # for traefik to recognize as trusted IP range
+      config:
+        - subnet: 172.28.0.0/16
+```
+{: file="compose.yaml" }
+
+```yaml
+providers:
+  file:
+    directory: /config/dynamic
+    watch: true
+entryPoints:
+  cf:
+    # address CF tunnel config is pointed to on traefik container
+    address: :808
+    asDefault: true
+    http:
+    # will always run if service/router is using cf entrypoint
+    # otherwise, this middleware can be ommited here and instead used per service/router as a middleware
+     middlewares:
+       - cloudflarewarp@file
+    # this needs to be on the entrypoint you are using for cf tunneled services
+    # must match traefik_internal network
+    forwardedHeaders:
+      trustedIPs:
+        - 172.28.0.1/24
+ experimental:
+  plugins:
+    cloudflarewarp:
+      moduleName: "github.com/PseudoResonance/cloudflarewarp"
+      version: "v1.4.0"
+```
+{: file="/etc/traefik/traefik.yaml" }
+
+```yaml
+http:
+  middlewares:
+    cloudflarewarp:
+      plugin:
+        cloudflarewarp:
+          disableDefault: false
+```
+{: file="/config/dynamic/global.yaml" }
+
+</details>
 
 ### Authentik Integration
 
