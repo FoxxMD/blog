@@ -612,7 +612,53 @@ http:
 
 ### Authentik Integration
 
-https://docs.goauthentik.io/docs/add-secure-apps/providers/proxy/server_traefik
+SWAG handles the majority of the configuration needed to use authentik with Nginx using [sample config files.](https://github.com/linuxserver/docker-swag/blob/master/root/defaults/nginx/authentik-server.conf.sample) It also assumes that you are using the [embedded outpost](https://docs.goauthentik.io/docs/add-secure-apps/outposts/embedded/) and use the [default outpost path.](https://github.com/linuxserver/docker-swag/blob/master/root/defaults/nginx/authentik-location.conf.sample)
+
+Traefik has no such pre-configured configuration but Authentik does provide [guidance on setting it up](https://docs.goauthentik.io/docs/add-secure-apps/providers/proxy/server_traefik), which is relatively straight forward. My configuration is essentially the same as the just mentioned guide for `docker-compose` with a few key differences.
+
+##### Where's Authentik?
+
+The [guide](https://docs.goauthentik.io/docs/add-secure-apps/providers/proxy/server_traefik) defines `authentik-proxy` but doesn't mention you need an actual `authentik` service deployed as well -- you can't use *just* the proxy. This might be obvious for some but it's not clear from the docs. You should follow the [Docker Compose installation docs](https://docs.goauthentik.io/docs/install-config/install/docker-compose) and deploy the authentik [`docker-compose.yaml`](https://github.com/goauthentik/authentik/blob/main/docker-compose.yml) stack. **Then**, add the `authentik-proxy` service from the guide to that stack (or wherever you want to deploy it).
+
+If you deploy `authentik-proxy` in the same stack as the authentik `server` service you can change these environmental variables in `authentik-proxy` to take advantage of the stack network/hostnames:
+
+```diff
+service:
+  # ...
+  authentik-proxy:
+    image: ghcr.io/goauthentik/proxy:${AUTHENTIK_TAG:-2024.10.5}
+    # ...
+    environment:
+-      AUTHENTIK_HOST: https://your-authentik.tld
++      AUTHENTIK_HOST: http://server:9000
+-      AUTHENTIK_INSECURE: "false"
++      AUTHENTIK_INSECURE: "true"
+      # ...  
+```
+{: file="compose.yaml"}
+
+#### Setting up Authentik Outpost/Proxy
+
+`authentik-proxy` set up in the previous section **is an [outpost.](https://docs.goauthentik.io/docs/add-secure-apps/outposts/)** The terminology used by Traefik isn't very clear about this. You will need to configure Authentik to accept a new outpost before `authentik-proxy` will run correctly.
+
+* Open your Authentik dashboard -> Admin Interface -> Applications -> Outposts
+* **Create** a new Outpost
+  * Type: `Proxy`
+  * Integration: Select `---------` from the dropdown so that it is blank (DO NOT use a Docker-Service Connection)
+  * Applications: Select at least one now. More can be added later
+  * **Create**
+* **View Deployment Info** on the newely created outpost 
+  * **AUTHENTIK_TOKEN** -> copy token
+
+Add the copied token to the `AUTHENTIK_TOKEN` environmental variable in your `authentik-proxy` compose file and then restart the proxy. It should now operate correctly and Authentik should have a green status in "Health and Version" on the outposts page.
+
+From now on, use this new outpost for applications intead of the embedded outpost.
+
+#### Configuring Traefik with Authentik
+
+Finally, the easy part! In [Authentik's Traefik guide](https://docs.goauthentik.io/docs/add-secure-apps/providers/proxy/server_traefik) setup the authentik middleware using the **Standalone traefik** sample for `http.middlewares.authentik` in a [dyanamic file config](https://doc.traefik.io/traefik/providers/file/), which creates the middleware `authentik@file`.
+
+Alternatively, if you included all the labels from the **docker-compose** sample for `authentik-proxy` then it is already setup (`traefik.http.middlewares.authentik.forwardauth.*`) and can be used with the middleware `authentik-proxy@docker`.
 
 ### Service Discovery
 
