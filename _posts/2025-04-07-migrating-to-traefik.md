@@ -7,6 +7,7 @@ date: 2025-04-07 10:00:00 -0400
 categories: [Tutorial]
 tags: [nginx, docker, traefik, crowdsec, ssl, dns]
 pin: false
+mermaid: true
 image:
   path: /assets/img/traefik/traefik-dashboard.webp
   alt: Traefik dashboard
@@ -330,6 +331,62 @@ environment:
 then find our provider's [`.ini` file](https://github.com/linuxserver/docker-swag/tree/master/root/defaults/dns-conf) in the SWAG service's [config directory](https://docs.linuxserver.io/general/swag/#docker-compose), and [edit the file to hardcode our DNS provider's credentials.](https://github.com/linuxserver/docker-swag/blob/master/root/defaults/dns-conf/cloudflare.ini)
 
 I don't particularly like having credentials hardcoded like that and `EXTRA_DOMAINS` still feelsbadman.jpg
+
+
+#### Cloudflare Tunnels {#certs-and-cf-tunnels}
+
+When using [Cloudflare Tunnels](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/) no cert generation/management is required. 
+
+<details markdown="1">
+
+<summary>Why?</summary>
+
+Traefik does not need (or use) certs to handle the traffic coming from `cloudflared` because the traffic from the tunnel is unencrypted by the time it is forwarded to Traefik.
+
+The point of encryption/https/ssl for web traffic is to transport data between the requester's machine and your target network/endpoint in a way that cannot be modified or snooped on by a third party.
+
+When traffic is routed directly from the internet to Traefik (using plain ol' port forwarding or w/e through your router) the burden of providing proof that the endpoint (your machine's IP) is the **owner** of `example.com` (and the encryption key) is on Traefik. Traefik uses letsencrypt/acme to provide that proof and generate certs *on your machine* that the requester can inspect to verify that chain. TLS/encryption for the request terminates when it reaches Traefik.
+
+When using cloudflare tunnels, cloudflare is now the **owner** of that burden of proof (`example.com`). CF generates edge certs that the requester verifies for proof. It also modifies A/CNAME records to point to a *Cloudflare IP* instead of your network's public IP.
+
+The requester then sends their traffic *to the Cloudflare IP*. This is where TLS/encryption terminates. CF then forwards the traffic to the associated `cloudflared` tunnel which then forwards it to whereever you configured it. You (Traefik) aren't necessary in that chain of proof anymore.
+
+Below is a (very) simplied flowchart showing the difference between these two traffic flows.
+
+```mermaid
+flowchart TD
+    ReqPF[Request]
+    ReqPF --> A
+    subgraph port-forward
+    A[Router] -->|forward to Traefik| B(Traefik)
+    B -->|verifies with cert| ReqPF
+    B --> un>Unencrypts traffic]
+    un -->|reads Host Header and matches with rules| forpf[Forwards to app]
+    end
+
+    
+    subgraph cloudflared
+    ReqCF[Request]
+    ReqCF --> CF[CF Edge Server]
+    CF -->|verifies with cert| ReqCF
+    CF -->|unencrypts traffic| CFD[cloudflared tunnel]
+    CFD --> trae[Traefik]
+    trae -->|reads Host Header and matches with rules| forcf[Forwards to app]
+    end
+```
+
+
+> Traffic is encrypted between CF edge servers and CF Tunnel, but it's internal encryption that is unencrypted before `cloudflared` forwards it to your specified Service URL.
+{: .prompt-info }
+
+> The above explanation applies to **any** web server behind `cloudflared` -- NPM, Nginx, Caddy, etc...
+{: .prompt-info }
+
+___
+
+</details>
+
+The Entrypoint setup for Traefik is slightly different (no `http.tls.certResolver` and address is different). See [Cloudflare Tunnel Integration](#cloudflare-tunnels-integration) below.
 
 ### Crowdsec Integration
 
@@ -729,6 +786,9 @@ http://traefik:808
 _Domain and wildcard entries with service URL_
 
 The domain `traefik` should be the same as whetever you have the *service name* of traefik as in your [compose stack.](#cloudflared-tunnel-container-setup)
+
+> [Why does the Service use `http` and traefik entrypoint not use TLS/SSL/certs?](#certs-and-cf-tunnels)
+{: .prompt-info }
 
 #### CF Real IP Forwarding
 
