@@ -242,12 +242,94 @@ Check the [FAQ](#faq-and-how-tos) at the bottom for more examples like
 
 ### Cert Management
 
-Easy. Traefik has built in management.
+Both SWAG and Traefik offer automated SSL cert generation but I found Traefik's setup to be vastly easier to understand and configure than SWAGs.
 
-`websecure.http.tls.certResolver` and `domains.main domains.sans`
+For a simple setup, say one domain + subdomain using http verification, both providers are moderately equivalent. SWAG does everything using [container ENVs](https://docs.linuxserver.io/general/swag/#create-container-via-http-validation) which is attractive.
 
-https://doc.traefik.io/traefik/https/acme/#providers
-https://go-acme.github.io/lego/dns/cloudflare/
+Traefik requires setting up a [cert resolver and entrypoint](https://doc.traefik.io/traefik/https/acme/#configuration-examples) which can be done via file or as labels on a docker container (not recommended).
+
+One advantage Traefik has is that it will [automatically generate certs](https://doc.traefik.io/traefik/https/acme/#domain-definition) for **all domains** found during service discovery. That is, if you have the label
+
+```yaml
+labels:
+  - traefik.http.routers.blog.rule=Host(`example.com`) && Path(`/blog`)
+```
+{: file="compose.yaml"}
+
+on a docker container then Traefik will automatically get a cert for `example.com`. That's pretty nice. 
+
+To do the same with SWAG you need to define ENVs for a main URL/domain, all subdomains, and `EXTRA_DOMAIN` for all additional domains:
+
+```yaml
+environment:
+  URL: yourdomain.url
+  SUBDOMAINS: www,example1,example2
+  EXTRA_DOMAINS: yourdomainfoo.url,yourdomainbar.url
+```
+{: file="compose.yaml"}
+
+It's...weird to need two different ENVs to define domains.
+
+#### Wildcards
+
+But this is where Traefik really shines. To use wildcard certs with Traefik we add a few more lines to our existing static config, specifying the dns challenge provider and explicitly defining the domains:
+
+```diff
+entryPoints
+  websecure:
+    asDefault: true
+    address: :443
+    http:
+      tls:
+        certResolver: myresolver
++        domains:
++          - main: foo.com
++            sans: 
++              - "*.foo.com"
++          - main: bar.com
++            sans:
++              - "*.bar.com"
+# ...
+certificatesResolvers:
+  myresolver:
+    acme:
+      email: "info@foo.com"
+      storage: "/letsencrypt/acme.json"
+-      httpChallenge:
+-        entryPoint: web
++      dnsChallenge:
++        provider: cloudflare
+```
+{: file="/etc/traefik/traefik.yaml"}
+
+and then add to our traefik service whatever ENVs are required to fulfill the [DNS provider's config](https://doc.traefik.io/traefik/https/acme/#providers):
+
+```diff
+services:
+  traefik:
+    # ...
+    environment:
+      FOO: BAR
++      CF_DNS_API_TOKEN: ${CF_DNS_API_TOKEN}
+```
+{: file="compose.yaml"}
+
+To setup wildcards with SWAG we need to modify service ENVs
+
+```diff
+environment:
+  URL: yourdomain.url
+- SUBDOMAINS: www,example1,example2
++ SUBDOMAINS: wildcard
+- EXTRA_DOMAINS: yourdomainfoo.url,yourdomainbar.url
++ EXTRA_DOMAINS: yourdomainfoo.url,*.yourdomainfoo.url,yourdomainbar.url,*.yourdomainbar.url
++ VALIDATION=dns
+```
+{: file="compose.yaml"}
+
+then find our provider's [`.ini` file](https://github.com/linuxserver/docker-swag/tree/master/root/defaults/dns-conf) in the SWAG service's [config directory](https://docs.linuxserver.io/general/swag/#docker-compose), and [edit the file to hardcode our DNS provider's credentials.](https://github.com/linuxserver/docker-swag/blob/master/root/defaults/dns-conf/cloudflare.ini)
+
+I don't particularly like having credentials hardcoded like that and `EXTRA_DOMAINS` still feelsbadman.jpg
 
 ### Crowdsec Integration
 
