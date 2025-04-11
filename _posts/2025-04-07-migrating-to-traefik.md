@@ -1,11 +1,11 @@
 ---
-title: Migrating from SWAG/NGIX to Traefik
+title: Migrating from SWAG/Nginx to Traefik
 description: >-
-  Moving multi-host external/internal services, SSL, cloudflare workers, and crowdsec to Traefik without Swarm
+  Moving multi-host external/internal services, SSL, cloudflare tunnels, and crowdsec to Traefik without Swarm
 author: FoxxMD
 date: 2025-04-07 10:00:00 -0400
 categories: [Tutorial]
-tags: [nginx, docker, traefik, crowdsec, ssl, dns]
+tags: [nginx, swag, docker, swarm, traefik, crowdsec, cloudflare, ssl, dns]
 pin: false
 mermaid: true
 image:
@@ -965,7 +965,208 @@ Alternatively, if you included all the labels from the **docker-compose** sample
 
 ### Service Discovery
 
-Not using Swarm yet so discovery is done using a stack with [traefik-kop](https://github.com/jittering/traefik-kop) and docker-socket-proxy.
+Traefik offers first-class support for [Service Discovery](https://doc.traefik.io/traefik/providers/overview/) via [Docker](https://doc.traefik.io/traefik/providers/docker/), [Docker Swarm](https://doc.traefik.io/traefik/providers/swarm/), [Dynamic File](https://doc.traefik.io/traefik/providers/file/), and many others.
+
+#### Nginx Equivalent
+
+Traefik supports "discovery" of services in a manner similar to Nginx using the ["dynamic" file provider](https://doc.traefik.io/traefik/providers/file/). These are plain yaml files where you write all the configuration necessary for traefik to connect to an upstream service. Where these files are located is defined in traefik's [static config](https://doc.traefik.io/traefik/getting-started/configuration-overview/#the-static-configuration):
+
+```yaml
+providers:
+  file:
+    directory: "/config/dynamic"
+```
+{: file="/etc/traefik/traefik.yaml" }
+
+An example of a dynamic file:
+
+```yaml
+http:
+  routers:
+    foo:
+      entryPoints:
+      - web
+      middlewares:
+      - authentik@file
+      service: foo
+      rule: Host(`foo.example.com`)
+  services:
+    foo:
+      loadBalancer:
+        servers:
+        - url: "http://192.168.1.110:8080/"
+```
+{: file="/config/dynamic/sites.yaml" }
+
+Traefik hot-reloads these files once they are saved so your changes are applied immediately. 
+
+There is no reason you *couldn't* use these for all of your services, even docker containers. **But you shouldn't**...since the files are hardcoded you can't take advantage of all the dynamic wiring traefik can do for Docker/Swarm. The dynamic file configs also end up being much more verbose for simple use cases.
+
+Use dynamic files:
+
+* to define [complex **Middlewares**](https://doc.traefik.io/traefik/middlewares/http/overview/) which can then be used in docker labels
+* for upstream services that can't be automatically discovered by another provider (like a static site or other non-docker web server)
+
+#### Docker Discovery
+
+If you are migrating from Nginx then it's likely all of your services are on the same machine (Docker instance/daemon). If this is true and you do not plan on expanding to multiple hosts soon then using the [Docker Provider](https://doc.traefik.io/traefik/providers/docker/) is right for you. This provider uses `docker.sock` to enumerate all the containers on the **same machine as Traefik** and discover services based on container labels.
+
+Read through the provider docs thoroughly as they cover everything you need for setup. A minimal example:
+
+```yaml
+providers:
+  docker:
+    endpoint: "unix:///var/run/docker.sock"
+```
+{: file="/etc/traefik/traefik.yaml" }
+
+```diff
+services:
+  traefik:
++   volumes:
++     - /var/run/docker.sock:/var/run/docker.sock
+```
+{: file="compose.yaml"}
+
+```yaml
+services:
+  foo:
+  # ...
+    labels:
+      traefik.enable: true
+      traefik.http.routers.foo.rule: Host(`foox.example.com`)
+      traefik.http.services.foo.loadbalancer.server.port: 8080
+```
+{: file="foo-compose.yaml"}
+
+#### Multi-Host Docker Discovery
+
+If you have multiple machines running Docker and want Traefik to route to all of them you have a few choices.
+
+##### Dynamic files and Docker Discovery {#multi-host-files}
+
+Use [**Dynamic files**](#nginx-equivalent) if it's only one or two, unchanging services. Using this approach as well as the [docker provider](#docker-discovery) for services on the same machine is *doable* if the "other host" services are exceptions/unchanging and can be reached over the bridge network (host IP:PORT).
+
+##### Docker Swarm
+
+If you are already using [Docker Swarm](https://docs.docker.com/engine/swarm/) for all of your services then you're golden (why are you reading this guide?). Setup the [Swarm provider](https://doc.traefik.io/traefik/providers/swarm/) and make sure your [labels are applied to swarm services](https://doc.traefik.io/traefik/providers/swarm/#configuration-examples) rather than individual containers.
+
+If Traefik is deployed as a swarm service it should be [constrained to run on one node](https://dockerswarm.rocks/traefik/#preparation).
+
+##### Docker Standalone
+
+This is probably why you are reading this guide. To do service discovery with standalone Docker instances across many hosts we will use [**traefik-kop**](https://github.com/jittering/traefik-kop). How kop works:
+
+* traefik uses a [redis provider](https://doc.traefik.io/traefik/providers/redis/) shared with multiple instances of kop
+* kop is deployed on **each** Docker host
+  * it listens to docker and parses container labels the same way traefik does for the [Docker provider](https://doc.traefik.io/traefik/providers/docker/)
+  * on label/container changes it writes configuration back to the redis provider
+    * it appends IP/hostname to the service configuration based on **inferred** docker network or explicitly-provided **configuration/labels**
+
+The precedence and flexibility of how kop [determines each container's hostname/IP](https://github.com/jittering/traefik-kop?tab=readme-ov-file#ip-binding) is its killer feature. In a nutshell, by priority:
+
+* Label `kop.bind.ip`
+* IP of attached **overlay** network specified by label `traefik.docker.network` (same label Traefik uses)
+* `kop` container ENV `BIND_IP` (also used when `network: host`)
+* Auto-detected host IP
+
+So you can mix-and-match stacks attached to overlay networks with those running standalone (bridged). kop handles it all.
+
+> If you have multiple hosts running docker (4+, ideally, but 2 will work) you should create a Docker Swarm cluster even if you aren't going to use swarm deployments. [**Overlay networks**](https://docs.docker.com/engine/network/tutorials/overlay/), a Docker Swarm feature, allow stacks/containers to communicate as if they were all on the same machine. Joining a cluster does not affect how your standalone docker instances work or how your regular stacks are deployed. [See here for more information.](#placeholder)
+{:.prompt-tip}
+
+###### Setup traefik-kop
+
+Add a Redis server to your traefik stack:
+
+```yaml
+services:
+  traefik:
+    # ...
+  traefik-redis:
+    restart: always
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+    volumes:
+      - $DOCKER_DATA/traefik/redis:/data
+```
+{: file="compose.yaml"}
+
+and configure it as a [provider](https://doc.traefik.io/traefik/providers/redis/):
+
+```yaml
+providers:
+  redis:
+    endpoints:
+      - traefik-redis:6379
+```
+{: file="/etc/traefik/traefik.yaml"}
+
+Next, on each docker host create a new stack for kop. I prefer to connect it to docker using [docker-socket-proxy](https://docs.linuxserver.io/images/docker-socket-proxy) since it only needs limited, read-only capabilities.
+
+```yaml
+services:
+  traefik-kop:
+    image: "ghcr.io/jittering/traefik-kop:latest"
+    restart: unless-stopped
+    environment:
+      - "REDIS_ADDR=192.168.TRAEFIK.REDISIP:6379"
+      - "DOCKER_HOST=tcp://socket-proxy:2375"
+      - "BIND_IP=192.168.HOST.IP"
+      - "KOP_HOSTNAME=${HOSTNAME:-generic}"
+  socket-proxy:
+    image: lscr.io/linuxserver/socket-proxy:latest
+    environment:
+      - ALLOW_START=0
+      - ALLOW_STOP=0
+      - ALLOW_RESTARTS=0
+      - CONTAINERS=1
+      - INFO=1
+      - NETWORKS=1
+      - POST=0
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    restart: always
+    read_only: true
+    tmpfs:
+      - /run
+```
+{: file="compose.yaml"}
+
+Finally, add labels to your docker services as if they are using the regular [docker provider](https://doc.traefik.io/traefik/providers/docker/). Make sure to check kop's [usage docs](https://github.com/jittering/traefik-kop?tab=readme-ov-file#usage) and properly configure [IP binding](https://github.com/jittering/traefik-kop?tab=readme-ov-file#ip-binding).
+
+**Watch out for port used with traefik!**
+
+If you are using **host/bridge IP** for the container then the port must be published and the port for traefik must be the "external" port...
+
+```yaml
+services:
+  foo:
+    ports:
+      - "9123:8080"
+    labels:
+      # ...
+      traefik.http.services.foo.loadbalancer.server.port: 9123
+```
+{: file="compose.yaml"}
+
+If you are using an **overlay network** then the port does not *need* to be published and the port for traefik should be the "internal" port...
+
+```yaml
+services:
+  foo:
+    #ports:
+    #  - "9123:8080"
+    labels:
+      # ...
+      traefik.http.services.foo.loadbalancer.server.port: 8080
+      traefik.docker.network: my_overlay
+# ...
+```
+{: file="compose.yaml"}
 
 ### Separating Interal/External Services
 
