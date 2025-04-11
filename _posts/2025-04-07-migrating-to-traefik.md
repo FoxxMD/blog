@@ -58,26 +58,187 @@ Overviews of how each [Requirement](#requirementsspec) was met
 
 ### Web Routing Parity
 
-The hardest requirement to meet. Unlike NGINX,
+This was the hardest requirement to meet for **edge cases**. Unlike NGINX,
 
-* chaining together multiple transformations of a route is not as straightforward
-* Doing anything that short-circuits a route and isn't already a middleware isn't well documented or designed for
+* Chaining together multiple transformations of a route is not as straightforward
+* Doing anything that short-circuits a route and isn't already a middleware isn't well documented
 * Traefik doesn't have as many middlewares (plugins) and well-documented, non-trivial "how to do X" examples
+* Traefik's docs mostly use file provider examples which have 1-to-1 equivalents in [docker provider labels](https://doc.traefik.io/traefik/providers/docker/#configuration-examples) but labels examples are basically non-existent. Tracking down examples of *complex* labels usage was frustrating.
 
-Majority are straightforward, examples of SWAG default configs vs traefik labels
+Despite more complex Nginx confs requiring more work to emulate with Traefik, **the majority of SWAG's subdomain confs are straightforward and can be replicated with only a few lines/labels in Traefik.**
 
-#### Chaining Middleware with Non-Trivial Examples
+Below is a sample SWAG `.conf` of an nginx `server` directive for sonarr, which is representative of the "basic" SWAG subdomain conf and covers ~90% of use cases.
 
-Mastodon example
+<details markdown="1">
 
-#### Redirect on non-existent Route
+<summary>Expand Full Sample</summary>
 
-Return 302 instead of 404 for wildcare routes.
+[`dozzle.subdomain.conf.sample`](https://github.com/linuxserver/reverse-proxy-confs/blob/4d3e03f6dcfc69734755ac80b9d765938646bacc/dozzle.subdomain.conf.sample) from [https://github.com/linuxserver/reverse-proxy-confs](https://github.com/linuxserver/reverse-proxy-confs)
 
-#### Missing How Do To X Example
+```nginx
+## Version 2024/07/16
+# make sure that your dozzle container is named dozzle
+# make sure that your dns has a cname set for dozzle
 
-* Minio for mastodon, `customresponseheaders`
-* `ignorecert` and `insecureSkipVerify` usage
+server {
+    listen 443 ssl;
+    listen [::]:443 ssl;
+
+    server_name dozzle.*;
+
+    include /config/nginx/ssl.conf;
+
+    client_max_body_size 0;
+
+    # enable for ldap auth (requires ldap-location.conf in the location block)
+    #include /config/nginx/ldap-server.conf;
+
+    # enable for Authelia (requires authelia-location.conf in the location block)
+    #include /config/nginx/authelia-server.conf;
+
+    # enable for Authentik (requires authentik-location.conf in the location block)
+    #include /config/nginx/authentik-server.conf;
+
+    location / {
+        # enable the next two lines for http auth
+        #auth_basic "Restricted";
+        #auth_basic_user_file /config/nginx/.htpasswd;
+
+        # enable for ldap auth (requires ldap-server.conf in the server block)
+        #include /config/nginx/ldap-location.conf;
+
+        # enable for Authelia (requires authelia-server.conf in the server block)
+        #include /config/nginx/authelia-location.conf;
+
+        # enable for Authentik (requires authentik-server.conf in the server block)
+        #include /config/nginx/authentik-location.conf;
+
+        include /config/nginx/proxy.conf;
+        include /config/nginx/resolver.conf;
+        set $upstream_app dozzle;
+        set $upstream_port 8080;
+        set $upstream_proto http;
+        proxy_pass $upstream_proto://$upstream_app:$upstream_port;
+
+    }
+}
+```
+{: file="dozzle.subdomain.conf.sample"}
+
+</details>
+
+I'll break down the directive parts and how to they match up to Traefik functionality.
+
+```nginx
+listen 443 ssl;
+listen [::]:443 ssl;
+
+# ...
+
+include /config/nginx/ssl.conf;
+```
+{: file="dozzle.subdomain.conf.sample"}
+
+Traefik [Entrypoint](https://doc.traefik.io/traefik/routing/entrypoints) with [HTTPS/TLS](https://doc.traefik.io/traefik/https/overview/) using [ACME provider for automatic certs](https://doc.traefik.io/traefik/https/acme/) or certificate resolvers [(covered below)](#cert-management) for statically-defined domains.
+
+
+```nginx
+server_name dozzle.*;
+```
+{: file="dozzle.subdomain.conf.sample"}
+
+Using [Router](https://doc.traefik.io/traefik/routing/routers/) [Rules](https://doc.traefik.io/traefik/routing/routers/#rule) like [Host](https://doc.traefik.io/traefik/routing/routers/#host-and-hostregexp) to match domains. This can be done in a [dynamic config file](https://doc.traefik.io/traefik/providers/file/) but is more often seen as a [label on a docker compose service](https://doc.traefik.io/traefik/providers/docker/#configuration-examples) like this:
+
+```yaml
+services:
+  dozzle:
+    # ...
+    labels:
+      - traefik.http.routers.dozzle.rule=Host(`dozzle.tld`)
+```
+{: file="compose.yaml"}
+
+```nginx
+    # enable for ldap auth (requires ldap-location.conf in the location block)
+    #include /config/nginx/ldap-server.conf;
+
+    # enable for Authelia (requires authelia-location.conf in the location block)
+    #include /config/nginx/authelia-server.conf;
+
+    # enable for Authentik (requires authentik-location.conf in the location block)
+    #include /config/nginx/authentik-server.conf;
+
+    location / {
+        # enable the next two lines for http auth
+        #auth_basic "Restricted";
+        #auth_basic_user_file /config/nginx/.htpasswd;
+
+        # enable for ldap auth (requires ldap-server.conf in the server block)
+        #include /config/nginx/ldap-location.conf;
+
+        # enable for Authelia (requires authelia-server.conf in the server block)
+        #include /config/nginx/authelia-location.conf;
+
+        # enable for Authentik (requires authentik-server.conf in the server block)
+        #include /config/nginx/authentik-location.conf;
+    # ...
+```
+{: file="dozzle.subdomain.conf.sample"}
+
+These are the equivalent to Traefik [Middleware](https://doc.traefik.io/traefik/middlewares/overview/) that would be defined either
+
+* for all routes on the entrypoint
+* for specific routes using docker labels like:
+
+```yaml
+services:
+  dozzle:
+    # ...
+    labels:
+      - traefik.http.routers.dozzle.rule=Host(`dozzle.tld`)
+      - traefik.http.routers.dozzle.middleware=authentik@file
+      # ...
+```
+{: file="compose.yaml"}
+
+I cover setting up [Authentik with Traefik](#authentik-integration) below.
+
+
+```nginx
+        include /config/nginx/proxy.conf;
+        include /config/nginx/resolver.conf;
+        set $upstream_app dozzle;
+        set $upstream_port 8080;
+        set $upstream_proto http;
+        proxy_pass $upstream_proto://$upstream_app:$upstream_port;
+```
+{: file="dozzle.subdomain.conf.sample"}
+
+The Traefik equivalent of this is [Services](https://doc.traefik.io/traefik/routing/services/).
+
+This can be configured for non-docker sources using a [dynamic config file](https://doc.traefik.io/traefik/routing/services/#configuration-examples) or, more commonly, on the docker compose service using a label. When using labels usually only the port is necessary as the [Docker Provider](https://doc.traefik.io/traefik/providers/docker/) takes care of determining the IP/host to use.
+
+```yaml
+services:
+  dozzle:
+    # ...
+    labels:
+      - traefik.http.routers.dozzle.rule=Host(`dozzle.tld`)
+      - traefik.http.services.dozzle.loadbalancer.server.port: 8080
+      # ...
+```
+{: file="compose.yaml"}
+
+More information on [Service Discovery and Docker is covered below.](#service-discovery)
+
+
+#### How do I do X?
+
+Check the [FAQ](#faq-and-how-tos) at the bottom for more examples like
+
+* [Chaining middleware](#chaining-middleware-with-non-trivial-examples)
+* [Redirect on non-existent Route](#redirect-on-non-existent-route)
+* [Multiple domains, same container](#multiple-services-same-container)
 
 ### Cert Management
 
@@ -664,7 +825,7 @@ Alternatively, if you included all the labels from the **docker-compose** sample
 
 Not using Swarm yet so discovery is done using a stack with [traefik-kop](https://github.com/jittering/traefik-kop) and docker-socket-proxy.
 
-#### Separating Interal/External Services
+### Separating Interal/External Services
 
 Will eventually by done with [Swarm using `constraints`](https://doc.traefik.io/traefik/providers/swarm/#constraints) but traefik-kop has equivalent functionality using [label `namespace`](https://github.com/jittering/traefik-kop?tab=readme-ov-file#namespaces)
 
@@ -716,6 +877,21 @@ metrics:
 
 * Copy-pasting labels, may forget service/router name is same as existing
 * Traefik does not complain about this unless it causes actually issues (router issue) but will still cause reachability issues while running
+
+## FAQ and How To's
+
+### Chaining Middleware with Non-Trivial Examples
+
+Mastodon example
+
+### Redirect on non-existent Route
+
+Return 302 instead of 404 for wildcare routes.
+
+### Missing How Do To X Example
+
+* Minio for mastodon, `customresponseheaders`
+* `ignorecert` and `insecureSkipVerify` usage
 
 ### Multiple Services, Same Container
 
