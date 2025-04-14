@@ -1072,7 +1072,7 @@ The precedence and flexibility of how kop [determines each container's hostname/
 
 So you can mix-and-match stacks attached to overlay networks with those running standalone (bridged). kop handles it all.
 
-> If you have multiple hosts running docker (4+, ideally, but 2 will work) you should create a Docker Swarm cluster even if you aren't going to use swarm deployments. [**Overlay networks**](https://docs.docker.com/engine/network/tutorials/overlay/), a Docker Swarm feature, allow stacks/containers to communicate as if they were all on the same machine. Joining a cluster does not affect how your standalone docker instances work or how your regular stacks are deployed. [See here for more information.](#placeholder)
+> If you have multiple hosts running docker (4+, ideally, but 2 will work) you should create a Docker Swarm cluster even if you aren't going to use swarm deployments. [**Overlay networks**](https://docs.docker.com/engine/network/tutorials/overlay/), a Docker Swarm feature, allow stacks/containers to communicate as if they were all on the same machine. Joining a cluster does not affect how your standalone docker instances work or how your regular stacks are deployed. [See here for more information.](#overlay-placeholder)
 {:.prompt-tip}
 
 ###### Setup traefik-kop
@@ -1168,9 +1168,156 @@ services:
 ```
 {: file="compose.yaml"}
 
-### Separating Interal/External Services
+## Separating Internal/External Services
 
-Will eventually by done with [Swarm using `constraints`](https://doc.traefik.io/traefik/providers/swarm/#constraints) but traefik-kop has equivalent functionality using [label `namespace`](https://github.com/jittering/traefik-kop?tab=readme-ov-file#namespaces)
+The ability to *better* separate services accessible (only) internally and those that are externally (publicly) exposed was a large driving force for my migration to traefik. There are several ways to do this listed below, each with increasingly more thorough (and IMO safer) levels of isolation.
+
+#### By Route
+
+All of your entrypoints and services are all served under the same Traefik instance. The determining factor for accessibility is the [Router Rule](https://doc.traefik.io/traefik/routing/routers/#rule) used route your services. With a [DNS challenge generated cert for a domain](#wildcards) and [LAN-only DNS configured](../lan-reverse-proxy-https#step-3-setting-up-lan-only-dns) you can simply match against "lan-only" domain routes without needing to worry about external accessibility since there are no external DNS records to point to your server:
+
+```yaml
+services:
+  internalService:
+  # ...
+    labels:
+      # only reachable inside LAN
+      traefik.http.routers.send.rule: Host(`foo.domain.home`)
+  externalService:
+  # ...
+    labels:
+      # externally accessible
+      traefik.http.routers.send.rule: Host(`foo.domain.com`)
+```
+{: file="compose.yaml"}
+
+#### By Entrypoint
+
+Adding to the above isolation, Traefik can be configured with [multiple entrypoints](https://doc.traefik.io/traefik/routing/entrypoints/#configuration-examples) with one of those entrypoints using [`asDefault: true`](https://doc.traefik.io/traefik/routing/entrypoints/#asdefault). Ideally, this would be the internal one. This would ensure that to make a service public you would additionally need to explicitly set the entrypoint for the service. No accidentally exposing an internal service because of a copy-paste of domain matching rules. This is essentially requiring "two keys" in the nuclear launch sequence to make a service public.
+
+```yaml
+# ...
+entryPoints:
+  websecure:
+    asDefault: true
+    address: :443
+    # ...
+  externalEntry:
+    address: :808
+    asDefault: false
+```
+{: file="/etc/traefik/traefik.yaml"}
+
+```yaml
+services:
+  internalService:
+  # ...
+    labels:
+      # only reachable inside LAN
+      traefik.http.routers.int.rule: Host(`foo.domain.home`)
+  externalService:
+  # ...
+    labels:
+      # externally accessible
+      traefik.http.routers.ext.rule: Host(`foo.domain.com`)
+      # this is required! Without it service is not reachable
+      traefik.http.routers.ext.entrypoints: externalEntry
+```
+{: file="compose.yaml"}
+
+### By Isolated Docker Network
+
+The two methods above are convenient but are only as safe as the most vulnerable container among all the services wired up. If one of your public services has an RCE vulnerability then it does not matter if traefik routes traffic to the correct destinations since an attacker can simply scan the docker network or bridge the compromised container is on to see all other containers regardless of whether they are external or internal. Additionally, there is a chance a sloppy copy-paste or configuration mishap in traefik exposes your internal service as external.
+
+The most resilient approach to separating your external/internal services is to have **separate Traefik instances on isolated networks.**
+
+Docker networks are by-design isolated from each other. Containers on Network A cannot communicate with containers on Network B unless each Container is included in both networks. By separating external services into their own network we reduce the attack surface a bad actor has in the event they gain access to a compromised container -- the attacker can only accessing other containers on the same network.
+
+> Access between stacks on the same network can be mitigated in addition to preventing new, outgoing connections to non-docker network (LAN/VPN). Watch for the next blog post where I show how this can be done.
+{: .prompt-tip }
+
+In addition to network-level separation this requires *more* explicit configuration in the compose stack which lessens the chance of a sloppy copy-paste even further.
+
+#### How to do
+
+First, create [externally-managed docker networks](https://docs.docker.com/reference/cli/docker/network/create/) for your two, new web ingress networks. Make sure you [specify an unused subnet](https://docs.docker.com/reference/cli/docker/network/create/#specify-advanced-options) for the external network (we can use it in the next post on firewalling external networks...)
+
+```shell
+docker network create --driver=bridge --subnet=10.99.0.0/24 public_net
+docker network create --driver=bridge internal_net
+```
+
+> Replace `--driver=bridge` with `--driver=overlay` if you have [swarm mode enabled (you should!)](#overlay-placeholder)
+{: .prompt-tip }
+
+Create a new Stack for an external Traefik service and modify your existing for use with internal services only (or however best fits your implementation). Each Traefik instances will get only one entrypoint based on where traffic comes from IE External -> entrypoint for [Cloudflare Tunnels](#cloudflare-tunnels-integration) only, Internal -> entrypoint for 80/443 with local dns. Make sure to add each instance of the respective network you just created.
+
+```yaml
+services:
+  internalTraefik:
+  # ...
+    networks:
+      - default
+      - internal_net
+  # ...
+networks:
+  internal_net:
+    external: true
+```
+{: file="compose.yaml"}
+
+```yaml
+services:
+  externalTraefik:
+  # ...
+    networks:
+      - default
+      - public_net
+  # ...
+networks:
+  public_net:
+    external: true
+```
+{: file="compose.yaml"}
+
+Next, if you are using [traefik-kop for service discovery](#docker-standalone) then create an additional kop instance on each host. Modify each instance to use a [namespace](https://github.com/jittering/traefik-kop?tab=readme-ov-file#namespaces) so that kop knows which services should be sent to which traefik instance.
+
+```yaml
+services:
+  traefik-kop-public:
+    image: "ghcr.io/jittering/traefik-kop:latest"
+    environment:
+      # ...
+      - "NAMESPACE=public"
+    depends_on:
+      - socket-proxy
+  traefik-kop-internal:
+    image: "ghcr.io/jittering/traefik-kop:latest"
+    environment:
+      # ...
+      - "NAMESPACE=internal"
+```
+{: file="compose.yaml"}
+
+Finally, on each service modify the stack to include the correct docker network and (if using kop) add additional labels to tell kop which instance it should belong to. An example of an external service:
+
+```diff
+services:
+  myExtService:
+  # ...
+    labels:
+      # ...
++     traefik.docker.network: public_net
++     kop.namespace: public      
+```
+{: file="compose.yaml"}
+
+Now all internal/external services are fully isolated both in traefik (different instances) and by docker network so external services have no access to internal services.
+
+> If you have external services that need access to internal services you should *ideally* run a second, "external" instance of that dependency.
+> 
+> If that is not possible then it is better to create an *additional* externally-managed network that both stacks can share, rather than attaching the external stack to the internal network.
+{: .prompt-tip }
 
 ## Additional Traefik Functionality
 
