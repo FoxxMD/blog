@@ -17,22 +17,45 @@ image:
 
 ### Why?
 
-* NGINX designed for single server topology
-  * No service discovery
-  * Middleware is hard
-* Relying on SWAG doesn't feel first class
-  * ENVs for cert generation are unwieldy
-    * Still kind of a hack, wish it was 1st party
-  * crowdsec mod encourages tight coupling with SWAG scripts
-  * cloudflare tunnels encourages tight coupling with SWAG scripts
-  * service discovery mod designed for single host
-    * my fork works but feelsbadman.jpg
-* No birdseye
-  * No dashboard or metrics
-  * Diagnosing config errors is hard
-    * Should not need https://github.com/dvershinin/gixy to do this 
+##### NGINX Configuration is Static
+
+This is the single most important reason I had for migrating away from NGINX. 
+
+In a homelab environment where services are being spun up/down, created, moved between hosts, renamed...having to 1) remember to update NGINX config and then restart it 2) keep track of IP:PORT or specific config per application is a pain. NGINX was designed during a time when network topology wasn't so dynamic, it's not built with a homelab use-case in mind. It's also not built with today's paradigms in mind such as [first-class environmental substitution](https://www.baeldung.com/linux/nginx-config-environment-variables) or [easy-to-read config validation.](https://github.com/dvershinin/gixy)
+
+##### NGINX Service Configuration Ownership
+
+As my homelab continues to grow I have gravitated towards each Stack owning its own configuration. Through mechanisms like `environment` in `compose.yaml` or configs committed to git alongside `compose.yaml` etc.. having the service-as-code live next to all the data needed run the service makes it more portable and reduces the cognitive scope required to configure it. NGINX config files need to be physically accessible to it and that is not a *feasible* option when services run on other hosts.
+
+##### SWAG is Tightly Coupled and Opinionated
+
+LSIO does an excellent job making setup with NGINX easy by using [SWAG](https://docs.linuxserver.io/general/swag/). For simple setups and users just dipping their toes into the space it's a fantastic tool for getting started quickly without requiring any hand holding.
+
+However, it has shortfalls which appear for more complex use-cases. Some of these are limitations of nginx such as needing the user to [edit .ini files for DNS ACME challenge while other solutions only need ENVs](http://localhost:4000/posts/migrating-to-traefik/#wildcards). 
+
+Others are due to the reality of limited developer-hours needing to fulfill only the most common use-case, like LSIO's [cloudflare docker mod](https://github.com/linuxserver/docker-mods/tree/universal-cloudflared) configuration only working with one domain even though a tunnel can be used for multiple domains -- one domain is the most common use-case and easiest to script for. In this scenario "fixing" the problem means refactoring the entire stack to remove universal-cloudflare and implementing your own `cloudflared` container.
+
+If most scenarios end with the user having to implement the decoupled solution anyways...why not consider other reverse proxy solutions since we aren't tied to SWAG anymore?
+
+##### Lack of Dashboard
+
+NGINX does not have a dashboard unless you are paying for enterpise (NGINX Plus). SWAG has a [docker mod for Goaccess](https://github.com/linuxserver/docker-mods/tree/swag-dashboard) but that is more traffic-focused then NGINX config-related. [NPM does have a dashboard](https://nginxproxymanager.com/screenshots/) as does [Traefik](https://doc.traefik.io/traefik/operations/dashboard/).
+
+Having a dashboard with relevant config metrics and error troubleshooting becomes a must as the number of services served grows.
+
+##### NGINX/SWAG does not have first-class Service Discovery
+
+SWAG offers the docker mod [swag-auto-proxy](https://github.com/linuxserver/docker-mods/tree/swag-auto-proxy) which generates nginx confs for services discovered by docker label on the same machine NGINX is running on. I forked this as [swag-auto-proxy-multi](https://github.com/FoxxMD/docker-mods/tree/swag-auto-proxy-multi) and wrote new functionality to enable it to work with multiple hosts using [docker-socket-proxy](https://docs.linuxserver.io/images/docker-socket-proxy/). 
+
+While this does work it's not *good.* The inner workings are a mess of bash scripts that generate nginx confs and reload *the entire application* every time new changes are made. It's also barebones compared to applications like Traefik that have [service discovery as a first-class feature.](https://traefik.io/glossary/service-discovery/)
 
 ### Requirements/Spec
+
+Before YOLO'ing another reverse-proxy solution I came up with a list of requirements that needed to met. I have 60+ stacks, over 100 containers, running on 7 machines. 
+
+If I am going to switch and do all the work to get most of these served then the new solution was going to have to 1) have **feature parity** with SWAG + features I use with it (auth) and 2) be **easier** to implement with all my machines than the current swag + auto-proxy setup.
+
+The requirements:
 
 * Must be able to host services with web routing parity WRT NGINX configs
 * Cert management must be easier than SWAG
@@ -47,15 +70,24 @@ image:
 
 ### Evaluating Other Solutions
 
+* [NGINX Proxy Manager (NPM)](https://nginxproxymanager.com)
+  * Considered since almost all my confs would be able to stay the same
+  * Eventually decided against due to lack of first-class service discovery
 * [Caddy](https://caddyserver.com/)
-  * Requires third party module just for docker discovery https://github.com/lucaslorentz/caddy-docker-proxy
+  * Requires third party module for [service discovery](https://github.com/lucaslorentz/caddy-docker-proxy)
   * [Plugins require custom builds](https://github.com/serfriz/caddy-custom-builds) including cloudflare/crowdsec
 * [GoDoxy](https://github.com/yusing/godoxy)
-  * Promising but too new
+  * Has dashboard, dynamic reloading, automatic certs
+  * Has first-class docker service discovery via labels and supports [multiple hosts](https://github.com/yusing/godoxy/wiki/Configurations#setting-up-providers)
+  * Strongly considered but too new...lack of docs and user base. My homelab is too large and in "production use" to be a beta tester
 
 ## Satifying Requirements with Traefik
 
-Overviews of how each [Requirement](#requirementsspec) was met
+I eventually settled on [Traefik](https://traefik.io/) after due-diligence gave me enough confidence to think I could satisfy all of the [Requirement](#requirementsspec).
+
+The actual implementation is always more difficult than how it looks on paper but in the end it met every requirement and ended up being easy to maintain and work with! 
+
+In each section below I lightly cover the differences between SWAG/Traefik, what was needed to migrate to Traefik, and how I implemented it along with examples, if necessary.
 
 ### Web Routing Parity
 
@@ -1238,7 +1270,7 @@ Docker networks are by-design isolated from each other. Containers on Network A 
 
 In addition to network-level separation this requires *more* explicit configuration in the compose stack which lessens the chance of a sloppy copy-paste even further.
 
-#### How to do
+#### Setup {#separate-network-setup}
 
 First, create [externally-managed docker networks](https://docs.docker.com/reference/cli/docker/network/create/) for your two, new web ingress networks. Make sure you [specify an unused subnet](https://docs.docker.com/reference/cli/docker/network/create/#specify-advanced-options) for the external network (we can use it in the next post on firewalling external networks...)
 
