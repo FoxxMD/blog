@@ -1072,7 +1072,7 @@ The precedence and flexibility of how kop [determines each container's hostname/
 
 So you can mix-and-match stacks attached to overlay networks with those running standalone (bridged). kop handles it all.
 
-> If you have multiple hosts running docker (4+, ideally, but 2 will work) you should create a Docker Swarm cluster even if you aren't going to use swarm deployments. [**Overlay networks**](https://docs.docker.com/engine/network/tutorials/overlay/), a Docker Swarm feature, allow stacks/containers to communicate as if they were all on the same machine. Joining a cluster does not affect how your standalone docker instances work or how your regular stacks are deployed. [See here for more information.](#overlay-placeholder)
+> If you have multiple hosts running docker you should strongly consider [creating a Swarm and using **Overlay Networks**](#swarm-and-overlay)
 {:.prompt-tip}
 
 ###### Setup traefik-kop
@@ -1172,7 +1172,7 @@ services:
 
 The ability to *better* separate services accessible (only) internally and those that are externally (publicly) exposed was a large driving force for my migration to traefik. There are several ways to do this listed below, each with increasingly more thorough (and IMO safer) levels of isolation.
 
-#### By Route
+### By Route
 
 All of your entrypoints and services are all served under the same Traefik instance. The determining factor for accessibility is the [Router Rule](https://doc.traefik.io/traefik/routing/routers/#rule) used route your services. With a [DNS challenge generated cert for a domain](#wildcards) and [LAN-only DNS configured](../lan-reverse-proxy-https#step-3-setting-up-lan-only-dns) you can simply match against "lan-only" domain routes without needing to worry about external accessibility since there are no external DNS records to point to your server:
 
@@ -1191,7 +1191,7 @@ services:
 ```
 {: file="compose.yaml"}
 
-#### By Entrypoint
+### By Entrypoint
 
 Adding to the above isolation, Traefik can be configured with [multiple entrypoints](https://doc.traefik.io/traefik/routing/entrypoints/#configuration-examples) with one of those entrypoints using [`asDefault: true`](https://doc.traefik.io/traefik/routing/entrypoints/#asdefault). Ideally, this would be the internal one. This would ensure that to make a service public you would additionally need to explicitly set the entrypoint for the service. No accidentally exposing an internal service because of a copy-paste of domain matching rules. This is essentially requiring "two keys" in the nuclear launch sequence to make a service public.
 
@@ -1247,7 +1247,7 @@ docker network create --driver=bridge --subnet=10.99.0.0/24 public_net
 docker network create --driver=bridge internal_net
 ```
 
-> Replace `--driver=bridge` with `--driver=overlay` if you have [swarm mode enabled (you should!)](#overlay-placeholder)
+> Replace `--driver=bridge` with `--driver=overlay` if you have [swarm mode enabled (you should!)](#swarm-and-overlay)
 {: .prompt-tip }
 
 Create a new Stack for an external Traefik service and modify your existing for use with internal services only (or however best fits your implementation). Each Traefik instances will get only one entrypoint based on where traffic comes from IE External -> entrypoint for [Cloudflare Tunnels](#cloudflare-tunnels-integration) only, Internal -> entrypoint for 80/443 with local dns. Make sure to add each instance of the respective network you just created.
@@ -1301,8 +1301,8 @@ services:
 
 Finally, on each service modify the stack to include the correct docker network and (if using kop) add additional labels to tell kop which instance it should belong to. An example of an external service:
 
-```diff
 services:
+```diff
   myExtService:
   # ...
     labels:
@@ -1402,8 +1402,98 @@ Ex
     traefik.http.services.mastodon.loadbalancer.server.port: 443
 ```
 
-## Full Examples
+### Swarm and Overlay
+
+#### What/Why Overlay?
+
+[Docker Networks](https://docs.docker.com/engine/network/) provide many benefits to the containers attached to them like network isolation and automatic hostname resolution to private IP in the network (reach by container name IE `http://myContainerName` => `http://10.0.5.26`). However, with (Standalone) Docker all of the [Networks types](https://docs.docker.com/engine/network/drivers/) that can be created (`host bridge ipvlan`) can only be used on the same machine they were created on. If you need containers on different hosts to communicate this can only be done through the [host `bridge`](https://docs.docker.com/engine/network/drivers/bridge/) and the remote container must publish a port to its host IE `http://HOST_IP:PORT` => `http://192.168.0.1:5770`.
+
+There is *another* network type, [**Overlay**](https://docs.docker.com/engine/network/drivers/overlay/), that solves this problem. Overlay networks *span all hosts* by communicating through internal bridges on each host's Docker daemon. All of the benefits (network isolation, hostname resolution, etc...) of a docker network are preserved but the containers can be running on any host attached to the network. However, **to use this network type your hosts must be in a [Docker Swarm](https://docs.docker.com/engine/swarm/).**
+
+#### Should You Swarm?
+
+Yes! Probably...let's clarify some things:
+
+* *Does swarm break my existing docker containers and stack?*
+  * **No.** Joining/creating a swarm has no effect on an existing containers/stacks. Leaving a swarm also has no adverse effect on **standalone** (non-swarm) containers/stacks.
+* *Can I use my non-swarm stacks and run containers if in a swarm?*
+  * **Yes.** You can continue to deploy non-swarm containers/stacks alongside [swarm stacks/services](https://docs.docker.com/engine/swarm/services/) without any conflicts.
+* *Do I have to do things the swarm way if in a swarm?*
+  * **No.** And that is the crux of this FAQ...we can take advantage of Swarm features (Overlay network) without needing to actually use Swarm for anything else.
+
+##### A Note On Quorum
+
+Swarm nodes run as either a [manager](https://docs.docker.com/engine/swarm/how-swarm-mode-works/nodes/#manager-nodes) or [worker](https://docs.docker.com/engine/swarm/how-swarm-mode-works/nodes/#worker-nodes) node. Manager nodes are responsible for maintaining the cluster and workers are dumb nodes that just do work.[^manager-worker] Managers must [maintain a **quoroum**](https://docs.docker.com/engine/swarm/admin_guide/#maintain-the-quorum-of-managers) to decide how things are done. Each manager gets a vote. If there 0 managers online, or *only an even number*, then a stalemate is reached and the cluster can't operate.
+
+[^manager-worker]: Both Managers and Workers do *work.* But only Managers are used for deploy/cluster state.
+
+Therefore, you should only run Swarm if you can have an [**odd** number of managers online.](https://docs.docker.com/engine/swarm/admin_guide/#add-manager-nodes-for-fault-tolerance)
+
+<details markdown="1">
+
+<summary>Simple Manager-Worker Count Table</summary>
+
+
+| Number of Nodes (Machines) | Managers | Workers |
+| -------------------------- | -------- | ------- |
+| 1                          | 1        | 0       |
+| 2                          | 1        | 1       |
+| 3                          | 1        | 2       |
+| 4                          | 3        | 1       |
+| 5                          | 3        | 2       |
+| 6                          | 3        | 3       |
+
+</details>
+
+Rule of Thumb:
+
+* **Less** than 4 machines => Swarm possible but losing manager = need to re-init swarm. [Be prepared to recover your swarm.](https://docs.docker.com/engine/swarm/admin_guide/#recover-from-losing-the-quorum)
+* **4 or more** machines => Elect 3 nodes as managers. Ideal scenario since you can lose 1 manager and still operate.
+
+#### Setup Swarm and Overlay
+
+This does not cover everything required to setup Swarm/Overlay, just the high-level. Make sure to read the linked docs!
+
+##### Swarm
+
+* Review [IP Address assignment to manager nodes](https://docs.docker.com/engine/swarm/swarm-tutorial/#the-ip-address-of-the-manager-machine)
+* Ensure [ports are open and firewalls are configured](https://docs.docker.com/engine/swarm/swarm-tutorial/#open-protocols-and-ports-between-the-hosts) to allow Swarm communication. This is usually done automatically but its good to keep in mind.
+* Follow the steps for [`swarm init` and creating manager nodes](https://docs.docker.com/engine/swarm/swarm-tutorial/create-swarm/)
+* Follow the steps for [creating worker nodes](https://docs.docker.com/engine/swarm/swarm-tutorial/add-nodes/)
+
+##### Overlay
+
+Creating overlays is basically the same as creating any [externally-managed docker networks](https://docs.docker.com/reference/cli/docker/network/create/) except you should specify the `overlay` driver:
+
+```shell
+docker network create --driver=overlay --attachable my_overlay_net
+```
+
+This must be done from a manager node. After creating the network it will only be listed on a host's networks (`docker network ls`) *if there is an existing container attached to it.*
+
+If you are creating an overlay network for [use with external traefik services (following this guide)](#by-isolated-docker-network) then make sure to [specify an unused subnet](https://docs.docker.com/reference/cli/docker/network/create/#specify-advanced-options) that can be used for firewall rules later (next post!)
+
+
+```shell
+docker network create --driver=bridge --attachable --subnet=10.99.0.0/24 public_net
+```
+
+To use an overlay network in a compose stack it must be defined in [top-level networking](https://docs.docker.com/reference/compose-file/networks/) as [`external`](https://docs.docker.com/reference/compose-file/networks/#external):
 
 ```yaml
-here be stacks
+services:
+  myService:
+    networks:
+      - public_net
+      # uncomment to include default bridge network
+      #- default
+    # ...
+networks:
+  public_net:
+    external: true
 ```
+{: file="compose.yaml"}
+
+___
+
+## Footnotes
