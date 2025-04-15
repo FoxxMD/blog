@@ -81,7 +81,7 @@ The requirements:
   * Has first-class docker service discovery via labels and supports [multiple hosts](https://github.com/yusing/godoxy/wiki/Configurations#setting-up-providers)
   * Strongly considered but too new...lack of docs and user base. My homelab is too large and in "production use" to be a beta tester
 
-## Satifying Requirements with Traefik
+## Satisfying Requirements with Traefik
 
 I eventually settled on [Traefik](https://traefik.io/) after due-diligence gave me enough confidence to think I could satisfy all of the [Requirement](#requirementsspec).
 
@@ -93,7 +93,6 @@ In each section below I lightly cover the differences between SWAG/Traefik, what
 
 This was the hardest requirement to meet for **edge cases**. Unlike NGINX,
 
-* Chaining together multiple transformations of a route is not as straightforward
 * Doing anything that short-circuits a route and isn't already a middleware isn't well documented
 * Traefik doesn't have as many middlewares (plugins) and well-documented, non-trivial "how to do X" examples
 * Traefik's docs mostly use file provider examples which have 1-to-1 equivalents in [docker provider labels](https://doc.traefik.io/traefik/providers/docker/#configuration-examples) but labels examples are basically non-existent. Tracking down examples of *complex* labels usage was frustrating.
@@ -267,7 +266,7 @@ More information on [Service Discovery and Docker is covered below.](#service-di
 
 #### How do I do X?
 
-Check the [FAQ](#faq-and-how-tos) at the bottom for more examples like
+Check the [FAQ](#faq) at the bottom for more examples like
 
 * [Chaining middleware](#chaining-middleware-with-non-trivial-examples)
 * [Redirect on non-existent Route](#redirect-on-non-existent-route)
@@ -1377,62 +1376,285 @@ metrics:
 ```
 {: file="static_config/traefik.yaml" }
 
-## Traefik Gotchas
+## FAQ, Gotchas, and How To's {#faq}
 
-### Ambiguous Config Sources and Documentation
+### Static/Dynamic Config Explained
 
-* Difficult to easily grok what the difference between static/dynamic config is
-* Difficult to determine where static/dynamic config should be placed in dir/files
-* Not obvious that config from separate sources can be used anywhere (file middleware in labels, docker plugin config in files)
-  * Parsed config sources not listed anywhere by name
+The Traefik docs do not do a good job of explaining the differences between these, where they can be placed, and what belongs in each.
+
+#### Static Config
+
+[Static Config](https://doc.traefik.io/traefik/getting-started/configuration-overview/#the-static-configuration) is anything that affects Traefik's behavior as a whole (logging, auth, plugins) or is considered "root" behavior like entrypoints, certificates, general provider configuration. Changes to Static Configuration does not take affect until Traefik is restarted.
+
+Within each provider of [Configuration Discovery](https://doc.traefik.io/traefik/providers/overview/), everything found under the [Provider Configuration](https://doc.traefik.io/traefik/providers/docker/#provider-configuration) section is **Static Configuration.** Everything else related to that Provider (routing, service, loadbalancers, etc...) is **Dynamic Configuration.**
+
+Static Configuration can be set in three places:
+
+##### File {#static-file-reference}
+
+In a [**specific configuration file**](https://doc.traefik.io/traefik/getting-started/configuration-overview/#configuration-file):
+
+* `/etc/traefik/traefik.yaml`
+* `$HOME/.config/traefik.yaml`
+* `./traefik.yaml` (the working directory)
+* a file defined as an argument to the traefik program IE `traefik --configFile=foo/bar/myconfigfile.yml`
+
+**Dynamic and Static Configuration files cannot be mixed.**
+
+[**File Reference**](https://doc.traefik.io/traefik/reference/static-configuration/file/)
+
+##### CLI {#cli-cli-reference}
+
+As a CLI argument to the traefik program. This can be plain command line or more commonly as part of `compose.yaml`. Example of same args in both places:
+
+```shell
+traefik --providers.docker=true --providers.docker.exposedbydefault=false --providers.file.directory=/etc/traefik/dynamic
+```
+
+```yaml
+  traefik:
+    image: "traefik:v3.3"
+    command:
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--providers.file.directory=/etc/traefik/dynamic"
+    # ...
+```
+
+The CLI args used for compose `command` **cannot be used as labels for the [Docker Provider.](https://doc.traefik.io/traefik/providers/docker/) They are not equivalent.**
+
+[**CLI Reference**](https://doc.traefik.io/traefik/reference/static-configuration/cli/)
+
+##### ENV {#static-env-reference}
+
+As environmental variables passed to the program or in `environment:` in `compose.yaml`. Again, ENVs for Static Configuration **cannot be used as labels for the [Docker Provider.](https://doc.traefik.io/traefik/providers/docker/) They are not equivalent.**
+
+[**ENV Reference**](https://doc.traefik.io/traefik/reference/static-configuration/env/)
+
+#### Dynamic Configuration
+
+[Dynamic Config](https://doc.traefik.io/traefik/getting-started/configuration-overview/#the-dynamic-configuration) is everything related to wiring up [Routers](https://doc.traefik.io/traefik/routing/overview/), [Services](https://doc.traefik.io/traefik/routing/services/),[Middlewares](https://doc.traefik.io/traefik/routing/services/), etc...
+
+**All** Dynamic config is parsed from one or more [Providers](https://doc.traefik.io/traefik/providers/overview/) that is setup using a [Static Config](#static-config).
+
+Importantly, regular YAML/TOML files can be parsed as "dynamic" config using the [File provider](https://doc.traefik.io/traefik/providers/file/). To use files/directories as dynamic config they need to defined in the Static Config first like:
+
+```yaml
+providers:
+  file:
+    directory: "/config"
+```
+{: file="/etc/traefik/traefik.yaml"}
+
+**Dynamic Config cannot be parsed from Static Config.** All of the methods/locations shown in the [Static Config](#static-config) cannot be used for Dynamic Config.
+
+### Static/Dynamic Config Best Practices
+
+This is entirely opinionated but as I have implemented Traefik for 60+ stacks across 7 machines with 4 different entrypoints, 5 plugins, and multiple certificates I have pretty good handle on what is manageable and scalable when it comes to how to best place config.
+
+Whatever you end up doing, it's best to keep similar features together:
+
+* Don't define 3 plugins in static file and 2 in CLI
+* Do define one-use middleware in the same docker labels as the serivce using it
+* Don't define a middleware in Servicea in `composeA.yaml` on HostA and then use it in ServiceY in `composeZ.yaml` on HostB. Move it into a central location instead.
+
+#### Static Config In Files {#static-file}
+
+Static config tends to have the most lists and nested properties. This becomes cumberbose to define in CLI as each section needs to be repeated for each nested property. It's also likely to be the largest block of config and benefits from being layed out visually in YAML as easier to read.
+
+```yaml
+command:
+  - "--entryPoints.web.address=80"
+  - "--entryPoints.web.http.middlewares=rate-limit@file"
+  - "--entryPoints.web.forwardedHeaders.trustedIPs[0]=172.28.0.1/24"
+  - "--entryPoints.web.forwardedHeaders.trustedIPs[1]=172.20.0.1/24"
+```
+vs
+```yaml
+  web:
+    address: :80
+    http:
+      middlewares:
+       - rate-limit@file
+    forwardedHeaders:
+      trustedIPs:
+        - 172.28.0.1/24
+        - 172.20.0.1/24
+```
+
+I keep my static config mounted to `/etc/traefik/traefik.yaml` inside the traefik docker container.
+
+```yaml
+  traefik:
+    image: "traefik:v3.3"
+    # ...
+    volumes:
+      - /host/path/to/static_dir:/etc/traefik
+```
+{: file="compose.yaml"}
+
+#### Dynamic Config In Labels {#dynamic-file}
+
+Any [Dynamic Config](#dynamic-configuration) that will be used by multiple routers/services should written in a YAML file parsed by the [File provider](https://doc.traefik.io/traefik/providers/file/). This prevents you from accidentally changing a middleware that may be used by more than one service or even deleting the middleware entirely. For example, if it was only defined in the docker compose labels and the service was destroyed then it would delete the middleware.
+
+Additionally, any config that requires long lists, deeply-nested properties, or defining 10+ properties may also benefit from being in a file for readability. I tend to keep all my reusable middlewares in a file named `global.yaml` with a second/third file for non-docker sites or those not possible to define with labels (`sites.yaml`).
+
+The [File provider](https://doc.traefik.io/traefik/providers/file/) is configured to parse dynamic configs from `/config` mounted into the traefik container.
+
+```yaml
+providers:
+  file:
+    directory: "/config"
+```
+{: file="/etc/traefik/traefik.yaml"}
+
+```yaml
+  traefik:
+    image: "traefik:v3.3"
+    # ...
+    volumes:
+      - /host/path/to/static_dir:/etc/traefik
+      - /host/path/to/dynamic_dir:/config
+```
+{: file="compose.yaml"}
+
+#### Reusable Dynamic Config In Files {#dynamic-label}
+
+All routers/services/middlewares that are specific to a docker service are defined using [docker labels](https://doc.traefik.io/traefik/providers/docker/#routing-configuration-with-labels) on that service (with exceptions [mentioned above](#dyanmic-file)). The docker service should "own" as much of the configuration for defining how it is wired up to traefik as possible.
+
+```yaml
+services:
+  serviceA:
+    # ...
+    labels:
+      traefik.enable: true
+      traefik.http.routers.serviceA.rule: Host(`serviceA.example.com`)
+      traefik.http.services.serviceA.loadbalancer.server.port: 3000
+      traefik.docker.network: internal_overlay
+```
+{: file="compose.yaml"}
 
 ### Finding Config Errors
 
-* Dynamic config issues immediate feedback, visible in dashboard
-* Static config does not appear until restart and traefik will bulldoze over silently
-  * Errors only show in docker logs but traefik will startup anyways
-  * May cause dashboard to entirely disappear if error affects internal routes
-  * Errors may look like dynamic if the error trickles downstream
-* So..always check docker logs **first** and always restart traefik after any static config changes
+Errors in [dynamic configuration](https://doc.traefik.io/traefik/providers/overview/) or downstream services can be found using the [internal dashboard.](https://doc.traefik.io/traefik/operations/dashboard/) The same is **not true** for [static configuration](https://doc.traefik.io/traefik/getting-started/configuration-overview/#the-static-configuration)which:
+
+* Does not appear until restart and traefik will bulldoze over silently
+* Errors only show in docker logs but traefik will startup anyways
+* May cause dashboard to entirely disappear if error affects internal routes
+* Errors may look like dynamic if the error trickles downstream
+
+So..always check docker logs **first** and always restart traefik after any static config changes. This is also why [access logs](#access-logs) should be separated from docker logs -- so that regular access noise output to docker logs does not drown out errors in traefik that are only output to docker logs.
 
 ### Clobbering Labels
 
-* Copy-pasting labels, may forget service/router name is same as existing
-* Traefik does not complain about this unless it causes actually issues (router issue) but will still cause reachability issues while running
+This is mainly applicable when using [routing configuration with labels (Docker compose labels)](https://doc.traefik.io/traefik/providers/docker/#routing-configuration-with-labels).
 
-## FAQ and How To's
+Traefik only uses uniquely named configuration for routers/services. It also *does not complain* if you use the same named labels more than once and will **silently overwrite** configuration. Take this example:
 
-### Chaining Middleware with Non-Trivial Examples
+```yaml
+services:
+  serviceA:
+    image: myFooImage
+    labels:
+      traefik.http.routers.myRouterA.rule: Host(`service.example.com`)
+      traefik.http.services.serviceA.loadbalancer.server.port: 8080
+  serviceB:
+    image: myBarImage
+    labels:
+      traefik.http.routers.myRouterA.rule: Host(`service.example.org`)
+      traefik.http.services.serviceA.loadbalancer.server.port: 8090
+```
 
-Mastodon example
+Both services reference `myRouterA` and `serviceA` but have different values for rule/port. Whichever service was deployed last will overwrite config for `myRouterA`/`serviceA`, leaving the other one unreachable! Additionally, if the overwritten configuration is still valid within Traefik there will be *no errors!*
+
+So,
+
+* make sure that when copy-pasting services/labels that the names are changed
+* if a service is not reachable and copy-pasting or referencing existing services was used check for label clobbering first before looking anywhere else
 
 ### Redirect on non-existent Route
 
-Return 302 instead of 404 for wildcare routes.
+This configuration makes Traefik redirect to *any* site of your choice (not just an existing Service) if no other Route is matched. 
 
-### Missing How Do To X Example
+This needs to be done at least partially in a [dynamic config (File provider)]([dynamic config file](https://doc.traefik.io/traefik/providers/file/)).
 
-* Minio for mastodon, `customresponseheaders`
-* `ignorecert` and `insecureSkipVerify` usage
+Create a new [Middleware](https://doc.traefik.io/traefik/middlewares/overview/) that uses a [RedirectRegex](https://doc.traefik.io/traefik/middlewares/http/redirectregex/) to redirect *anything* to the site of your choice.
+
+Then, add a new [Router](https://doc.traefik.io/traefik/routing/routers/) to the dynamic config. Explanation:
+
+* `PathPrefix('/')` makes the router match any route
+* `priority: 1` uses a low [priority](https://doc.traefik.io/traefik/routing/routers/#priority) to ensure the rule is run **after** any other Routers.
+* `middlewares: anyreg` makes the route redirect (always)
+* `service: noop@internal` is an undocumented "dummy" service that can be used for redirect [#1](https://github.com/traefik/traefik/issues/7291) [#2](https://community.traefik.io/t/noop-internal-service/5165) [#3](https://github.com/traefik/traefik/issues/7242#issuecomment-692101030)
+
+```yaml
+http:
+  middlewares:
+    anyreg:
+      redirectregex:
+        regex: ^.*
+        replacement: https://example.com
+  routers:
+    catchall:
+      rule: "PathPrefix(`/`)"
+      priority: 1
+      middlewares: anyreg
+      service: noop@internal
+      entryPoints:
+        - yourEntryPoint
+```
+{: file="/config/global.yaml"}
+
+### Trust Service Self-Generated Certificate
+
+If you have a Service/container that self-signs its own SSL certificates and using that path is the only way to access the service -- IE when you visit the URL in browser you get warning about self-signed certificates -- Traefik can be configured to always accept these certs so the warning does not occur or cause issues for Traefik.
+
+This needs to be configured in a [dynamic config (File provider)]([dynamic config file](https://doc.traefik.io/traefik/providers/file/)).
+
+Create a new [ServersTransport](https://doc.traefik.io/traefik/routing/services/#serverstransport_1) configuration that uses [`insecureSkipVerify`](https://doc.traefik.io/traefik/routing/services/#insecureskipverify):
+
+```yaml
+http:
+  # ...
+  serversTransports:
+    ignorecert:
+      insecureSkipVerify: true
+```
+{: file="/config/global.yaml"}
+
+Then, on the docker labels for the service add it to the load balancer:
+
+```yaml
+services:
+  myService:
+   # ...
+   labels:
+      # ...
+      traefik.http.services.serviceA.loadbalancer.server.port: 443
+      traefik.http.services.serviceA.loadbalancer.serverstransport: ignorecert@file
+      traefik.http.services.serviceA.loadbalancer.server.scheme: https
+```
+{: file="compose.yaml"}
 
 ### Multiple Services, Same Container
 
-Not an issue but not well documented
-
-* Traefik will complain if multiple routers on container labels but only one service
-* Can set service for router on label explicitly
-  * Docs examples focus on service name being implicitly define
-Ex
+This is not a well documented feature. For [routing configuration with labels](https://doc.traefik.io/traefik/providers/docker/#routing-configuration-with-labels) a service can have multiple routers but use the same [Service](https://doc.traefik.io/traefik/routing/services/) as long as the Service name is explicitly defined for each Router:
 
 ```yaml
-# ...
+services:
+  myService:
+   # ...
    labels:
-    traefik.http.routers.mastodon.service: mastodon
-    #...
-    traefik.http.routers.mastodon-root.service: mastodon
+    traefik.http.routers.myRouterA.service: serviceA
+    traefik.http.routers.myRouterA.rule: Host(`service.example.com`)
+    traefik.http.routers.myRouterA.entrypoint: entryA
+    traefik.http.routers.myRouterB.service: serviceA
+    traefik.http.routers.myRouterB.rule: Host(`service.example.org`)
+    traefik.http.routers.myRouterB.entrypoint: entryB
     # ...
-    traefik.http.services.mastodon.loadbalancer.server.port: 443
+    traefik.http.services.serviceA.loadbalancer.server.port: 443
 ```
+{: file="compose.yaml"}
 
 ### Swarm and Overlay
 
