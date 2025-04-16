@@ -21,21 +21,21 @@ image:
 
 This is the single most important reason I had for migrating away from NGINX. 
 
-In a homelab environment where services are being spun up/down, created, moved between hosts, renamed...having to 1) remember to update NGINX config and then restart it 2) keep track of IP:PORT or specific config per application is a pain. NGINX was designed during a time when network topology wasn't so dynamic, it's not built with a homelab use-case in mind. It's also not built with today's paradigms in mind such as [first-class environmental substitution](https://www.baeldung.com/linux/nginx-config-environment-variables) or [easy-to-read config validation.](https://github.com/dvershinin/gixy)
+In a homelab environment where services are being spun up/down, created, moved between hosts, renamed, etc...having to 1) remember to update NGINX config and then restart it and 2) keep track of IP:PORT or specific config per application is a pain. NGINX was designed during a time when network topology wasn't so dynamic, so it's not built with a homelab use-case in mind. It's also not built with today's paradigms in mind, such as [first-class environmental substitution](https://www.baeldung.com/linux/nginx-config-environment-variables) or [easy-to-read config validation.](https://github.com/dvershinin/gixy)
 
 ##### NGINX Service Configuration Ownership
 
-As my homelab continues to grow I have gravitated towards each Stack owning its own configuration. Through mechanisms like `environment` in `compose.yaml` or configs committed to git alongside `compose.yaml` etc.. having the service-as-code live next to all the data needed run the service makes it more portable and reduces the cognitive scope required to configure it. NGINX config files need to be physically accessible to it and that is not a *feasible* option when services run on other hosts.
+As my homelab continues to grow I have gravitated towards each Stack owning its own configuration. Through mechanisms like `environment` in `compose.yaml` or configs committed to git alongside `compose.yaml` etc., having the service-as-code live next to all the data needed run the service makes it more portable and reduces the cognitive scope required to configure it. NGINX config files need to be physically accessible to it and that is not a *feasible* option when services run on other hosts.
 
 ##### SWAG is Tightly Coupled and Opinionated
 
-LSIO does an excellent job making setup with NGINX easy by using [SWAG](https://docs.linuxserver.io/general/swag/). For simple setups and users just dipping their toes into the space it's a fantastic tool for getting started quickly without requiring any hand holding.
+LSIO does an excellent job making setup with NGINX easy by using [SWAG](https://docs.linuxserver.io/general/swag/). For simple setups and users just dipping their toes into the space it's a fantastic tool for getting started quickly without requiring any hand-holding.
 
-However, it has shortfalls which appear for more complex use-cases. Some of these are limitations of nginx such as needing the user to [edit .ini files for DNS ACME challenge while other solutions only need ENVs](http://localhost:4000/posts/migrating-to-traefik/#wildcards). 
+However, it has shortfalls which appear for more complex use-cases. Some of these are limitations of nginx, such as needing the user to [edit .ini files for DNS ACME challenge, while other solutions only need ENVs](http://localhost:4000/posts/migrating-to-traefik/#wildcards). 
 
-Others are due to the reality of limited developer-hours needing to fulfill only the most common use-case, like LSIO's [cloudflare docker mod](https://github.com/linuxserver/docker-mods/tree/universal-cloudflared) configuration only working with one domain even though a tunnel can be used for multiple domains -- one domain is the most common use-case and easiest to script for. In this scenario "fixing" the problem means refactoring the entire stack to remove universal-cloudflare and implementing your own `cloudflared` container.
+Others are due to the reality of limited developer-hours needing to fulfill only the most common use-case, like LSIO's [cloudflare docker mod](https://github.com/linuxserver/docker-mods/tree/universal-cloudflared) configuration only working with one domain even though a tunnel can be used for multiple domains -- one domain is the most common use-case and easiest to script for. In this scenario, "fixing" the problem means refactoring the entire stack to remove universal-cloudflare and implementing your own `cloudflared` container.
 
-If most scenarios end with the user having to implement the decoupled solution anyways...why not consider other reverse proxy solutions since we aren't tied to SWAG anymore?
+If most scenarios end with the user having to implement the decoupled solution anyway...why not consider other reverse proxy solutions since we aren't tied to SWAG anymore?
 
 ##### Lack of Dashboard
 
@@ -47,13 +47,13 @@ Having a dashboard with relevant config metrics and error troubleshooting become
 
 SWAG offers the docker mod [swag-auto-proxy](https://github.com/linuxserver/docker-mods/tree/swag-auto-proxy) which generates nginx confs for services discovered by docker label on the same machine NGINX is running on. I forked this as [swag-auto-proxy-multi](https://github.com/FoxxMD/docker-mods/tree/swag-auto-proxy-multi) and wrote new functionality to enable it to work with multiple hosts using [docker-socket-proxy](https://docs.linuxserver.io/images/docker-socket-proxy/). 
 
-While this does work it's not *good.* The inner workings are a mess of bash scripts that generate nginx confs and reload *the entire application* every time new changes are made. It's also barebones compared to applications like Traefik that have [service discovery as a first-class feature.](https://traefik.io/glossary/service-discovery/)
+While this does work, it's not *good.* The inner workings are a mess of bash scripts that generate nginx confs and reload *the entire application* every time new changes are made. It's also barebones compared to applications like Traefik that have [service discovery as a first-class feature.](https://traefik.io/glossary/service-discovery/)
 
 ### Requirements/Spec
 
 Before YOLO'ing another reverse-proxy solution I came up with a list of requirements that needed to met. I have 60+ stacks, over 100 containers, running on 7 machines. 
 
-If I am going to switch and do all the work to get most of these served then the new solution was going to have to 1) have **feature parity** with SWAG + features I use with it (auth) and 2) be **easier** to implement with all my machines than the current swag + auto-proxy setup.
+If I am going to switch and do all the work to get most of these served, then the new solution was going to have to 1) have **feature parity** with SWAG + features I use with it (auth) and 2) be **easier** to implement with all my machines than the current swag + auto-proxy setup.
 
 The requirements:
 
@@ -85,7 +85,7 @@ The requirements:
 
 I eventually settled on [Traefik](https://traefik.io/) after due-diligence gave me enough confidence to think I could satisfy all of the [Requirement](#requirementsspec).
 
-The actual implementation is always more difficult than how it looks on paper but in the end it met every requirement and ended up being easy to maintain and work with! 
+The actual implementation is always more difficult than how it looks on paper, but in the end, it met every requirement and ended up being easy to maintain and work with! 
 
 In each section below I lightly cover the differences between SWAG/Traefik, what was needed to migrate to Traefik, and how I implemented it along with examples, if necessary.
 
@@ -280,7 +280,7 @@ For a simple setup, say one domain + subdomain using http verification, both pro
 
 Traefik requires setting up a [cert resolver and entrypoint](https://doc.traefik.io/traefik/https/acme/#configuration-examples) which can be done via file or as labels on a docker container (not recommended).
 
-One advantage Traefik has is that it will [automatically generate certs](https://doc.traefik.io/traefik/https/acme/#domain-definition) for **all domains** found during service discovery. That is, if you have the label
+One advantage Traefik has is that it will [automatically generate certs](https://doc.traefik.io/traefik/https/acme/#domain-definition) for **all domains** found during service discovery (that is, if you have the label)
 
 ```yaml
 labels:
@@ -304,7 +304,7 @@ It's...weird to need two different ENVs to define domains.
 
 #### Wildcards
 
-But this is where Traefik really shines. To use wildcard certs with Traefik we add a few more lines to our existing static config, specifying the dns challenge provider and explicitly defining the domains:
+But this is where Traefik really shines. To use wildcard certs with Traefik, we add a few more lines to our existing static config, specifying the dns challenge provider and explicitly defining the domains:
 
 ```diff
 entryPoints
@@ -366,7 +366,7 @@ I don't particularly like having credentials hardcoded like that and `EXTRA_DOMA
 
 #### Cloudflare Tunnels {#certs-and-cf-tunnels}
 
-When using [Cloudflare Tunnels](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/) no cert generation/management is required. 
+When using [Cloudflare Tunnels](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/), no cert generation/management is required. 
 
 <details markdown="1">
 
@@ -451,7 +451,7 @@ The majority of the above could be consolidated into one CS container, CS config
 
 * Separating access logs from regular Traefik logs
   * Troubleshooting traefik-specific issues from logs is much easier (less noise in container logs)
-  * Write to file persists access logs after restart
+  * Write to file persists the access logs after restart
 * Exposing/using `log-tail` container enables
   * [traefik log acquistion](https://docs.crowdsec.net/docs/next/log_processor/data_sources/docker) to be done with a docker connection locally or remotely, and by container name. Instead of needing to mount log folders/files into a crowdsec container (locally only) and having to deal with permissions.
   * access logs are consumable/viewable in other apps (when using `json` access log format, readable in [Dozzle](https://dozzle.dev/) or Logdy)
@@ -732,7 +732,7 @@ Finally, restart traefik to have crowdsec enabled and in use!
 
 ### Cloudflare Tunnels Integration
 
-CF Tunnels setup is markedly different than SWAG but functionally the same once setup.
+CF Tunnels setup is markedly different than SWAG but functionally the same once set up.
 
 For CF Tunnels with SWAG there are two [LSIO docker mods](https://docs.linuxserver.io/general/container-customization/#docker-mods) that are used:
 
@@ -825,7 +825,7 @@ The domain `traefik` should be the same as whetever you have the *service name* 
 
 Finally, we need to configure traefik to substitute the value of the header `Cf-Connecting-IP` CF Tunnel attaches to our traffic into the `X-Forwarded-For` header. This will ensure that logs/metrics and downstream applications see the IP of the actual origin host rather than CF's edge server IPs.
 
-To this we first install the [traefik plugin](https://doc.traefik.io/traefik/plugins/) [cloudflarewarp](https://github.com/PseudoResonance/cloudflarewarp) by defining it in our **static config**:
+To do this we first install the [traefik plugin](https://doc.traefik.io/traefik/plugins/) [cloudflarewarp](https://github.com/PseudoResonance/cloudflarewarp) by defining it in our **static config**:
 
 ```yaml
 # add this to the /etc/traefik/traefik.yaml example above
@@ -853,7 +853,7 @@ http:
 ```
 {: file="/config/dynamic/global.yaml" }
 
-To use with the entrypoint we setup earlier in our static config add `entryPoints.cf.http.middlewares` with our middlename@provider:
+To use with the entrypoint we setup earlier in our static config add `entryPoints.cf.http.middlewares` with our `middleware@provider`:
 
 ```yaml
 # ... building on previous static config
@@ -960,7 +960,7 @@ If you deploy `authentik-proxy` in the same stack as the authentik `server` serv
 service:
   # ...
   authentik-proxy:
-    image: ghcr.io/goauthentik/proxy:${AUTHENTIK_TAG:-2024.10.5}
+    image: ghcr.io/goauthentik/proxy:${AUTHENTIK_TAG:-2024.10.5}are
     # ...
     environment:
 -      AUTHENTIK_HOST: https://your-authentik.tld
@@ -992,7 +992,7 @@ From now on, use this new outpost for applications intead of the embedded outpos
 
 Finally, the easy part! In [Authentik's Traefik guide](https://docs.goauthentik.io/docs/add-secure-apps/providers/proxy/server_traefik) setup the authentik middleware using the **Standalone traefik** sample for `http.middlewares.authentik` in a [dyanamic file config](https://doc.traefik.io/traefik/providers/file/), which creates the middleware `authentik@file`.
 
-Alternatively, if you included all the labels from the **docker-compose** sample for `authentik-proxy` then it is already setup (`traefik.http.middlewares.authentik.forwardauth.*`) and can be used with the middleware `authentik-proxy@docker`.
+Alternatively, if you included all the labels from the **docker-compose** sample for `authentik-proxy`, then it is already setup (`traefik.http.middlewares.authentik.forwardauth.*`) and can be used with the middleware `authentik-proxy@docker`.
 
 ### Service Discovery
 
@@ -1072,11 +1072,11 @@ services:
 
 #### Multi-Host Docker Discovery
 
-If you have multiple machines running Docker and want Traefik to route to all of them you have a few choices.
+If you have multiple machines running Docker and want Traefik to route to all of them, you have a few choices.
 
-##### Dynamic files and Docker Discovery {#multi-host-files}
+##### Dynamic files and Docker Discovery {#multi-host-files}are
 
-Use [**Dynamic files**](#nginx-equivalent) if it's only one or two, unchanging services. Using this approach as well as the [docker provider](#docker-discovery) for services on the same machine is *doable* if the "other host" services are exceptions/unchanging and can be reached over the bridge network (host IP:PORT).
+Use [**Dynamic files**](#nginx-equivalent) if it's only one or two unchanging services. Using this approach as well as the [docker provider](#docker-discovery) for services on the same machine is *doable* if the "other host" services are exceptions/unchanging and can be reached over the bridge network (host IP:PORT).
 
 ##### Docker Swarm
 
@@ -1136,7 +1136,7 @@ providers:
 ```
 {: file="/etc/traefik/traefik.yaml"}
 
-Next, on each docker host create a new stack for kop. I prefer to connect it to docker using [docker-socket-proxy](https://docs.linuxserver.io/images/docker-socket-proxy) since it only needs limited, read-only capabilities.
+Next, on each docker host, create a new stack for kop. I prefer to connect it to docker using [docker-socket-proxy](https://docs.linuxserver.io/images/docker-socket-proxy) since it only needs limited, read-only capabilities.
 
 ```yaml
 services:
@@ -1171,7 +1171,7 @@ Finally, add labels to your docker services as if they are using the regular [do
 
 **Watch out for port used with traefik!**
 
-If you are using **host/bridge IP** for the container then the port must be published and the port for traefik must be the "external" port...
+If you are using **host/bridge IP** for the container, then the port must be published and the port for traefik must be the "external" port...
 
 ```yaml
 services:
