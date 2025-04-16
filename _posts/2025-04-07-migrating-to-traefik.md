@@ -881,7 +881,7 @@ If you deploy `authentik-proxy` in the same stack as the authentik `server` serv
 service:
   # ...
   authentik-proxy:
-    image: ghcr.io/goauthentik/proxy:${AUTHENTIK_TAG:-2024.10.5}are
+    image: ghcr.io/goauthentik/proxy:${AUTHENTIK_TAG:-2024.10.5}
     # ...
     environment:
 -      AUTHENTIK_HOST: https://your-authentik.tld
@@ -995,7 +995,7 @@ services:
 
 If you have multiple machines running Docker and want Traefik to route to all of them, you have a few choices.
 
-##### Dynamic files and Docker Discovery {#multi-host-files}are
+##### Dynamic files and Docker Discovery {#multi-host-files}
 
 Use [**Dynamic files**](#nginx-equivalent) if it's only one or two unchanging services. Using this approach as well as the [docker provider](#docker-discovery) for services on the same machine is *doable* if the "other host" services are exceptions/unchanging and can be reached over the bridge network (host IP:PORT).
 
@@ -1202,7 +1202,7 @@ docker network create --driver=bridge internal_net
 > Replace `--driver=bridge` with `--driver=overlay` if you have [swarm mode enabled (you should!)](#swarm-and-overlay)
 {: .prompt-tip }
 
-Create a new Stack for an external Traefik service and modify your existing for use with internal services only (or however best fits your implementation). Each Traefik instances will get only one entrypoint based on where traffic comes from IE External -> entrypoint for [Cloudflare Tunnels](#cloudflare-tunnels-integration) only, Internal -> entrypoint for 80/443 with local dns. Make sure to add each instance of the respective network you just created.
+Create a new Stack for an external Traefik service and modify your existing one for use with internal services only (or however best fits your implementation). Each Traefik instances will get only one entrypoint based on where traffic comes from IE External -> entrypoint for [Cloudflare Tunnels](#cloudflare-tunnels-integration) only, Internal -> entrypoint for 80/443 with local dns. Make sure to add each instance of the respective network you just created.
 
 ```yaml
 services:
@@ -1268,7 +1268,7 @@ Now all internal/external services are fully isolated both in traefik (different
 
 > If you have external services that need access to internal services you should *ideally* run a second, "external" instance of that dependency.
 > 
-> If that is not possible then it is better to create an *additional* externally-managed network that both stacks can share, rather than attaching the external stack to the internal network.
+> If that is not possible, then it is better to create an *additional* externally-managed network that both stacks can share, rather than attaching the external stack to the internal network.
 {: .prompt-tip }
 
 ## FAQ, Gotchas, and How To's {#faq}
@@ -1332,7 +1332,7 @@ As environmental variables passed to the program or in `environment:` in `compos
 
 **All** Dynamic config is parsed from one or more [Providers](https://doc.traefik.io/traefik/providers/overview/) that is setup using a [Static Config](#static-config).
 
-Importantly, regular YAML/TOML files can be parsed as "dynamic" config using the [File provider](https://doc.traefik.io/traefik/providers/file/). To use files/directories as dynamic config they need to defined in the Static Config first like:
+Importantly, regular YAML/TOML files can be parsed as "dynamic" config using the [File provider](https://doc.traefik.io/traefik/providers/file/). To use files/directories as dynamic config, they need to be defined in the Static Config first like:
 
 ```yaml
 providers:
@@ -1345,7 +1345,7 @@ providers:
 
 ### Static/Dynamic Config Best Practices
 
-This is entirely opinionated but as I have implemented Traefik for 60+ stacks across 7 machines with 4 different entrypoints, 5 plugins, and multiple certificates I have pretty good handle on what is manageable and scalable when it comes to how to best place config.
+This is entirely opinionated, but as I have implemented Traefik for 60+ stacks across 7 machines with 4 different entrypoints, 5 plugins, and multiple certificates, I have a pretty good handle on what is manageable and scalable when it comes to how to best place config.
 
 Whatever you end up doing, it's best to keep similar features together:
 
@@ -1355,7 +1355,7 @@ Whatever you end up doing, it's best to keep similar features together:
 
 #### Static Config In Files {#static-file}
 
-[Static config](#static-config) tends to have the most lists and nested properties. This becomes cumberbose to define in CLI as each section needs to be repeated for each nested property. It's also likely to be the largest block of config and benefits from being layed out visually in YAML as easier to read.
+[Static config](#static-config) tends to have the most lists and nested properties. This becomes cumbersome to define in CLI as each section needs to be repeated for each nested property. It's also likely to be the largest block of config and benefits from being layed out visually in YAML as easier to read.
 
 <details markdown="1">
 
@@ -1402,7 +1402,7 @@ I keep my static config mounted to [`/etc/traefik/traefik.yaml`](https://doc.tra
 ```
 {: file="compose.yaml" link="https://github.com/FoxxMD/traefik-homelab/blob/main/traefik_internal/compose.yaml#L20"}
 
-> For more context see the repository example of [static config](https://github.com/FoxxMD/traefik-homelab/blob/main/traefik_external/traefik/static_config/traefik.yaml#L1) and [mounting into the traefik container](https://github.com/FoxxMD/traefik-homelab/blob/main/traefik_internal/compose.yaml#L20)
+> For more context, see the repository example of [static config](https://github.com/FoxxMD/traefik-homelab/blob/main/traefik_external/traefik/static_config/traefik.yaml#L1) and [mounting into the traefik container](https://github.com/FoxxMD/traefik-homelab/blob/main/traefik_internal/compose.yaml#L20)
 {: .prompt-tip}
 
 #### Reusable Dynamic Config In Files {#dynamic-file}
@@ -1459,7 +1459,7 @@ Errors in [dynamic configuration](#dynamic-config) or downstream services can be
 * May cause dashboard to entirely disappear if error affects internal routes
 * Errors may look like dynamic if the error trickles downstream
 
-So..always check docker logs **first** and always restart traefik after any static config changes. This is also why [access logs](#access-logs) should be separated from docker logs -- so that regular access noise output to docker logs does not drown out errors in traefik that are only output to docker logs.
+So...always check docker logs **first** and always restart traefik after any static config changes. This is also why [access logs](#access-logs) should be separated from docker logs -- so that regular access noise output to docker logs does not drown out errors in traefik that are only output to docker logs.
 
 ### Clobbering Labels
 
@@ -1486,7 +1486,7 @@ Both services reference `myRouterA` and `serviceA` but have different values for
 So,
 
 * make sure that when copy-pasting services/labels that the names are changed
-* if a service is not reachable and copy-pasting or referencing existing services was used check for label clobbering first before looking anywhere else
+* if a service is not reachable and copy-pasting or referencing existing services was used, check for label clobbering first before looking anywhere else
 
 ### Redirect on non-existent Route
 
@@ -1538,7 +1538,7 @@ http:
 ```
 {: file="/config/dynamic/global.yaml" link="https://github.com/FoxxMD/traefik-homelab/blob/main/traefik_external/traefik/dynamic_config/global.yml#L68-L70"}
 
-Then, on the docker labels for the service add it to the load balancer:
+Then, on the docker labels for the service, add it to the load balancer:
 
 ```yaml
 services:
@@ -1599,7 +1599,7 @@ Yes! Probably...let's clarify some things:
 
 ##### A Note On Quorum
 
-Swarm nodes run as either a [manager](https://docs.docker.com/engine/swarm/how-swarm-mode-works/nodes/#manager-nodes) or [worker](https://docs.docker.com/engine/swarm/how-swarm-mode-works/nodes/#worker-nodes) node. Manager nodes are responsible for maintaining the cluster and workers are dumb nodes that just do work.[^manager-worker] Managers must [maintain a **quoroum**](https://docs.docker.com/engine/swarm/admin_guide/#maintain-the-quorum-of-managers) to decide how things are done. Each manager gets a vote. If there 0 managers online, or *only an even number*, then a stalemate is reached and the cluster can't operate.
+Swarm nodes run as either a [manager](https://docs.docker.com/engine/swarm/how-swarm-mode-works/nodes/#manager-nodes) or [worker](https://docs.docker.com/engine/swarm/how-swarm-mode-works/nodes/#worker-nodes) node. Manager nodes are responsible for maintaining the cluster and workers are dumb nodes that just do work.[^manager-worker] Managers must [maintain a **quoroum**](https://docs.docker.com/engine/swarm/admin_guide/#maintain-the-quorum-of-managers) to decide how things are done. Each manager gets a vote. If there are 0 managers online, or *only an even number*, then a stalemate is reached and the cluster can't operate.
 
 [^manager-worker]: Both Managers and Workers do *work.* But only Managers are used for deploy/cluster state.
 
@@ -1633,7 +1633,7 @@ This does not cover everything required to setup Swarm/Overlay, just the high-le
 ##### Swarm
 
 * Review [IP Address assignment to manager nodes](https://docs.docker.com/engine/swarm/swarm-tutorial/#the-ip-address-of-the-manager-machine)
-* Ensure [ports are open and firewalls are configured](https://docs.docker.com/engine/swarm/swarm-tutorial/#open-protocols-and-ports-between-the-hosts) to allow Swarm communication. This is usually done automatically but its good to keep in mind.
+* Ensure [ports are open and firewalls are configured](https://docs.docker.com/engine/swarm/swarm-tutorial/#open-protocols-and-ports-between-the-hosts) to allow Swarm communication. This is usually done automatically but it's good to keep in mind.
 * Follow the steps for [`swarm init` and creating manager nodes](https://docs.docker.com/engine/swarm/swarm-tutorial/create-swarm/)
 * Follow the steps for [creating worker nodes](https://docs.docker.com/engine/swarm/swarm-tutorial/add-nodes/)
 
@@ -1645,7 +1645,7 @@ Creating overlays is basically the same as creating any [externally-managed dock
 docker network create --driver=overlay --attachable my_overlay_net
 ```
 
-This must be done from a manager node. After creating the network it will only be listed on a host's networks (`docker network ls`) *if there is an existing container attached to it.*
+This must be done from a manager node. After creating the network, it will only be listed on a host's networks (`docker network ls`) *if there is an existing container attached to it.*
 
 If you are creating an overlay network for [use with external traefik services (following this guide)](#by-isolated-docker-network) then make sure to [specify an unused subnet](https://docs.docker.com/reference/cli/docker/network/create/#specify-advanced-options) that can be used for firewall rules later (next post!)
 
@@ -1654,7 +1654,7 @@ If you are creating an overlay network for [use with external traefik services (
 docker network create --driver=bridge --attachable --subnet=10.99.0.0/24 public_net
 ```
 
-To use an overlay network in a compose stack it must be defined in [top-level networking](https://docs.docker.com/reference/compose-file/networks/) as [`external`](https://docs.docker.com/reference/compose-file/networks/#external):
+To use an overlay network in a compose stack, it must be defined in [top-level networking](https://docs.docker.com/reference/compose-file/networks/) as [`external`](https://docs.docker.com/reference/compose-file/networks/#external):
 
 ```yaml
 services:
