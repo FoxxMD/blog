@@ -268,7 +268,6 @@ More information on [Service Discovery and Docker is covered below.](#service-di
 
 Check the [FAQ](#faq) at the bottom for more examples like
 
-* [Chaining middleware](#chaining-middleware-with-non-trivial-examples)
 * [Redirect on non-existent Route](#redirect-on-non-existent-route)
 * [Multiple domains, same container](#multiple-services-same-container)
 
@@ -1344,32 +1343,6 @@ Now all internal/external services are fully isolated both in traefik (different
 > If that is not possible then it is better to create an *additional* externally-managed network that both stacks can share, rather than attaching the external stack to the internal network.
 {: .prompt-tip }
 
-## Additional Traefik Functionality
-
-### Viewing Realtime Logs
-
-Using Logdy with [access logs json file](#access-logs)
-
-### Metrics and Dashboard
-
-Internal dashboards for troubleshooting errors and checking status
-
-Metrics exported in prometheus format and collected into [Traefik Official Standalone Dashboard](https://grafana.com/grafana/dashboards/17346-traefik-official-standalone-dashboard/) with modifications for entrypoint/alias.
-
-```yaml
-api:
-  dashboard: true
-  insecure: true
-metrics:
-  prometheus:
-    buckets:
-      - 0.1
-      - 0.3
-      - 1.2
-      - 5.0
-```
-{: file="static_config/traefik.yaml" }
-
 ## FAQ, Gotchas, and How To's {#faq}
 
 ### Static/Dynamic Config Explained
@@ -1663,6 +1636,12 @@ services:
     traefik.http.services.serviceA.loadbalancer.server.port: 443
 ```
 {: file="compose.yaml"}
+
+### Viewing Realtime Logs
+
+[Logdy](https://logdy.dev/) can be used with [traefik's access logs json file](#access-logs) to view Traefik access in realtime. The setup is basically the same as my previous post on setting up [NGINX with Dockerized Logdy](nginx-logdy-docker/), if you are interested in the details.
+
+See the [traefik repository for a full stack with Logdy config included.](#TODO)
 
 ### Swarm and Overlay
 
