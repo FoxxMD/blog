@@ -179,7 +179,7 @@ server_name dozzle.*;
 ```
 {: file="dozzle.subdomain.conf.sample"}
 
-Using [Router](https://doc.traefik.io/traefik/routing/routers/) [Rules](https://doc.traefik.io/traefik/routing/routers/#rule) like [Host](https://doc.traefik.io/traefik/routing/routers/#host-and-hostregexp) to match domains. This can be done in a [dynamic config file](https://doc.traefik.io/traefik/providers/file/) but is more often seen as a [label on a docker compose service](https://doc.traefik.io/traefik/providers/docker/#configuration-examples) like this:
+Using [Router](https://doc.traefik.io/traefik/routing/routers/) [Rules](https://doc.traefik.io/traefik/routing/routers/#rule) like [Host](https://doc.traefik.io/traefik/routing/routers/#host-and-hostregexp) to match domains. This can be done in a [dynamic config file](#dynamic-file) but is more often seen as a [label on a docker compose service](https://doc.traefik.io/traefik/providers/docker/#configuration-examples) like this:
 
 ```yaml
 services:
@@ -248,7 +248,7 @@ I cover setting up [Authentik with Traefik](#authentik-integration) below.
 
 The Traefik equivalent of this is [Services](https://doc.traefik.io/traefik/routing/services/).
 
-This can be configured for non-docker sources using a [dynamic config file](https://doc.traefik.io/traefik/routing/services/#configuration-examples) or, more commonly, on the docker compose service using a label. When using labels usually only the port is necessary as the [Docker Provider](https://doc.traefik.io/traefik/providers/docker/) takes care of determining the IP/host to use.
+This can be configured for non-docker sources using a [dynamic config file](#dynamic-file) or, more commonly, on the docker compose service using a label. When using labels usually only the port is necessary as the [Docker Provider](https://doc.traefik.io/traefik/providers/docker/) takes care of determining the IP/host to use.
 
 ```yaml
 services:
@@ -304,7 +304,7 @@ It's...weird to need two different ENVs to define domains.
 
 #### Wildcards
 
-But this is where Traefik really shines. To use wildcard certs with Traefik, we add a few more lines to our existing static config, specifying the dns challenge provider and explicitly defining the domains:
+But this is where Traefik really shines. To use wildcard certs with Traefik, we add a few more lines to our existing [static config](#static-file), specifying the dns challenge provider and explicitly defining the domains:
 
 ```diff
 entryPoints
@@ -467,7 +467,7 @@ From real-world experience this setup scales *much better* than a single CS inst
 
 Configure traefik to output access logs, make sure files are rotated, and expose logs as a docker container.
 
-In your traefik [static config](https://doc.traefik.io/traefik/getting-started/configuration-overview/#the-static-configuration)[^static_mount] add:
+In your traefik [static config](#static-file) add:
 
 ```yaml
 accessLog:
@@ -686,7 +686,7 @@ Add the `crowdsec` service IP and **bouncer key**, [generated earlier](#crowdsec
 ```
 {: file="compose.yaml"}
 
-Add the [crowdsec-bouncer-traefik-plugin](https://github.com/maxlerebourg/crowdsec-bouncer-traefik-plugin) to your traefik [static config](https://doc.traefik.io/traefik/getting-started/configuration-overview/#the-static-configuration).
+Add the [crowdsec-bouncer-traefik-plugin](https://github.com/maxlerebourg/crowdsec-bouncer-traefik-plugin) to your traefik [static config file](#static-file).
 
 ```yaml
 experimental:
@@ -698,7 +698,7 @@ experimental:
 ```
 {: file="/etc/traefik/traefik.yaml"}
 
-Create a new middleware in your traefik [dynamic config](#cf-real-ip-forwarding) that configures the CS plugin. We use [go templating](https://doc.traefik.io/traefik/providers/file/#go-templating) to [get the ENVs](https://masterminds.github.io/sprig/os.html) we set in the compose service earlier.
+Create a new middleware in your traefik [dynamic config](#dynamic-file) that configures the CS plugin. We use [go templating](https://doc.traefik.io/traefik/providers/file/#go-templating) to [get the ENVs](https://masterminds.github.io/sprig/os.html) we set in the compose service earlier.
 
 ```yaml
 http:
@@ -784,9 +784,7 @@ Setting up the `traefik_internal` network with a static subnet will be important
 
 Now we need to 1) tell Traefik to accept CF Tunnel traffic on an [entrypoint](https://doc.traefik.io/traefik/routing/entrypoints/) and 2) tell CF Tunnel to forward traffic to that entrypoint.
 
-In your traefik [static config](https://doc.traefik.io/traefik/getting-started/configuration-overview/#the-static-configuration)[^static_mount] configure an entrypoint with a port and [forwarded headers](https://doc.traefik.io/traefik/routing/entrypoints/#forwarded-headers) so traefik knows to use CF IP as "request from" IP, rather than the `cloudflared` container internal IP. We will then use this later to get the [actual "request from" IP.](#cf-real-ip-forwarding)
-
-[^static_mount]: I use a yaml file mounted into `/etc/traefik` in the container because it's easier to configure but this can be done however you want.
+In your traefik [static config](#static-file) configure an entrypoint with a port and [forwarded headers](https://doc.traefik.io/traefik/routing/entrypoints/#forwarded-headers) so traefik knows to use CF IP as "request from" IP, rather than the `cloudflared` container internal IP. We will then use this later to get the [actual "request from" IP.](#cf-real-ip-forwarding)
 
 ```yaml
 providers:
@@ -825,7 +823,7 @@ The domain `traefik` should be the same as whetever you have the *service name* 
 
 Finally, we need to configure traefik to substitute the value of the header `Cf-Connecting-IP` CF Tunnel attaches to our traffic into the `X-Forwarded-For` header. This will ensure that logs/metrics and downstream applications see the IP of the actual origin host rather than CF's edge server IPs.
 
-To do this we first install the [traefik plugin](https://doc.traefik.io/traefik/plugins/) [cloudflarewarp](https://github.com/PseudoResonance/cloudflarewarp) by defining it in our **static config**:
+To do this we first install the [traefik plugin](https://doc.traefik.io/traefik/plugins/) [cloudflarewarp](https://github.com/PseudoResonance/cloudflarewarp) by defining it in our [static config](#static-file):
 
 ```yaml
 # add this to the /etc/traefik/traefik.yaml example above
@@ -837,11 +835,7 @@ experimental:
 ```
 {: file="/etc/traefik/traefik.yaml" }
 
-Then, define a middleware that uses the plugin *somewhere* in a [dynamic config.](https://doc.traefik.io/traefik/providers/overview/) I prefer to keep my "globally" used dynamic config in a [file](https://doc.traefik.io/traefik/providers/file/) defined by [directory in static config](https://doc.traefik.io/traefik/providers/file/#directory) rather than defining in a random container label.
-
-> * [`providers.files.directory`](#traefik-cf-entrypoint) in static config defines directory in container for dynamic configs
-> * dynamic config dir `/config/dynamic` is [mounted in the container](#cloudflared-tunnel-container-setup)
-{: .prompt-tip }
+Then, define a middleware that uses the plugin in a [dynamic config file.](#dynamic-file)
 
 ```yaml
 http:
@@ -1000,7 +994,7 @@ Traefik offers first-class support for [Service Discovery](https://doc.traefik.i
 
 #### Nginx Equivalent
 
-Traefik supports "discovery" of services in a manner similar to Nginx using the ["dynamic" file provider](https://doc.traefik.io/traefik/providers/file/). These are plain yaml files where you write all the configuration necessary for traefik to connect to an upstream service. Where these files are located is defined in traefik's [static config](https://doc.traefik.io/traefik/getting-started/configuration-overview/#the-static-configuration):
+Traefik supports "discovery" of services in a manner similar to Nginx using the ["dynamic" file provider](#dynamic-file). These are plain yaml files where you write all the configuration necessary for traefik to connect to an upstream service. Where these files are located is defined in traefik's [static config](#static-file):
 
 ```yaml
 providers:
@@ -1431,7 +1425,7 @@ As environmental variables passed to the program or in `environment:` in `compos
 
 [**ENV Reference**](https://doc.traefik.io/traefik/reference/static-configuration/env/)
 
-#### Dynamic Configuration
+#### Dynamic Config
 
 [Dynamic Config](https://doc.traefik.io/traefik/getting-started/configuration-overview/#the-dynamic-configuration) is everything related to wiring up [Routers](https://doc.traefik.io/traefik/routing/overview/), [Services](https://doc.traefik.io/traefik/routing/services/),[Middlewares](https://doc.traefik.io/traefik/routing/services/), etc...
 
@@ -1460,17 +1454,28 @@ Whatever you end up doing, it's best to keep similar features together:
 
 #### Static Config In Files {#static-file}
 
-Static config tends to have the most lists and nested properties. This becomes cumberbose to define in CLI as each section needs to be repeated for each nested property. It's also likely to be the largest block of config and benefits from being layed out visually in YAML as easier to read.
+[Static config](#static-config) tends to have the most lists and nested properties. This becomes cumberbose to define in CLI as each section needs to be repeated for each nested property. It's also likely to be the largest block of config and benefits from being layed out visually in YAML as easier to read.
+
+<details markdown="1">
+
+<summary>CLI vs File Example</summary>
 
 ```yaml
-command:
-  - "--entryPoints.web.address=80"
-  - "--entryPoints.web.http.middlewares=rate-limit@file"
-  - "--entryPoints.web.forwardedHeaders.trustedIPs[0]=172.28.0.1/24"
-  - "--entryPoints.web.forwardedHeaders.trustedIPs[1]=172.20.0.1/24"
+services:
+  traefik:
+    image: traefik:v3.3
+    # ...
+    command:
+      - "--entryPoints.web.address=80"
+      - "--entryPoints.web.http.middlewares=rate-limit@file"
+      - "--entryPoints.web.forwardedHeaders.trustedIPs[0]=172.28.0.1/24"
+      - "--entryPoints.web.forwardedHeaders.trustedIPs[1]=172.20.0.1/24"
 ```
+{: file="compose.yaml"}
+
 vs
 ```yaml
+entryPoints:
   web:
     address: :80
     http:
@@ -1481,8 +1486,11 @@ vs
         - 172.28.0.1/24
         - 172.20.0.1/24
 ```
+{: file="/etc/traefik/traefik.yaml"}
 
-I keep my static config mounted to `/etc/traefik/traefik.yaml` inside the traefik docker container.
+</details>
+
+I keep my static config mounted to [`/etc/traefik/traefik.yaml`](https://doc.traefik.io/traefik/getting-started/configuration-overview/#configuration-file) inside the traefik docker container.
 
 ```yaml
   traefik:
@@ -1493,13 +1501,13 @@ I keep my static config mounted to `/etc/traefik/traefik.yaml` inside the traefi
 ```
 {: file="compose.yaml"}
 
-#### Dynamic Config In Labels {#dynamic-file}
+#### Dynamic Config In Files {#dynamic-file}
 
-Any [Dynamic Config](#dynamic-configuration) that will be used by multiple routers/services should written in a YAML file parsed by the [File provider](https://doc.traefik.io/traefik/providers/file/). This prevents you from accidentally changing a middleware that may be used by more than one service or even deleting the middleware entirely. For example, if it was only defined in the docker compose labels and the service was destroyed then it would delete the middleware.
+Any [Dynamic Config](#dynamic-config) that will be used by multiple routers/services should written in a YAML file parsed by the [File provider](https://doc.traefik.io/traefik/providers/file/). This prevents you from accidentally changing a middleware that may be used by more than one service or even deleting the middleware entirely. For example, if it was only defined in the docker compose labels and the service was destroyed then it would delete the middleware.
 
 Additionally, any config that requires long lists, deeply-nested properties, or defining 10+ properties may also benefit from being in a file for readability. I tend to keep all my reusable middlewares in a file named `global.yaml` with a second/third file for non-docker sites or those not possible to define with labels (`sites.yaml`).
 
-The [File provider](https://doc.traefik.io/traefik/providers/file/) is configured to parse dynamic configs from `/config` mounted into the traefik container.
+My [File provider](https://doc.traefik.io/traefik/providers/file/), configured in the [static config](#static-file), is set to parse dynamic configs from `/config` mounted into the traefik container.
 
 ```yaml
 providers:
@@ -1518,7 +1526,7 @@ providers:
 ```
 {: file="compose.yaml"}
 
-#### Reusable Dynamic Config In Files {#dynamic-label}
+#### Reusable Dynamic Config In Labels {#dynamic-label}
 
 All routers/services/middlewares that are specific to a docker service are defined using [docker labels](https://doc.traefik.io/traefik/providers/docker/#routing-configuration-with-labels) on that service (with exceptions [mentioned above](#dyanmic-file)). The docker service should "own" as much of the configuration for defining how it is wired up to traefik as possible.
 
@@ -1536,7 +1544,7 @@ services:
 
 ### Finding Config Errors
 
-Errors in [dynamic configuration](https://doc.traefik.io/traefik/providers/overview/) or downstream services can be found using the [internal dashboard.](https://doc.traefik.io/traefik/operations/dashboard/) The same is **not true** for [static configuration](https://doc.traefik.io/traefik/getting-started/configuration-overview/#the-static-configuration)which:
+Errors in [dynamic configuration](#dynamic-config) or downstream services can be found using the [internal dashboard.](https://doc.traefik.io/traefik/operations/dashboard/) The same is **not true** for [static configuration](#static-config) which:
 
 * Does not appear until restart and traefik will bulldoze over silently
 * Errors only show in docker logs but traefik will startup anyways
@@ -1576,7 +1584,7 @@ So,
 
 This configuration makes Traefik redirect to *any* site of your choice (not just an existing Service) if no other Route is matched. 
 
-This needs to be done at least partially in a [dynamic config (File provider)]([dynamic config file](https://doc.traefik.io/traefik/providers/file/)).
+This needs to be done at least partially in a [dynamic config (File provider)](#dynamic-file).
 
 Create a new [Middleware](https://doc.traefik.io/traefik/middlewares/overview/) that uses a [RedirectRegex](https://doc.traefik.io/traefik/middlewares/http/redirectregex/) to redirect *anything* to the site of your choice.
 
@@ -1609,7 +1617,7 @@ http:
 
 If you have a Service/container that self-signs its own SSL certificates and using that path is the only way to access the service -- IE when you visit the URL in browser you get warning about self-signed certificates -- Traefik can be configured to always accept these certs so the warning does not occur or cause issues for Traefik.
 
-This needs to be configured in a [dynamic config (File provider)]([dynamic config file](https://doc.traefik.io/traefik/providers/file/)).
+This needs to be configured in a [dynamic config (File provider)](#dynamic-file).
 
 Create a new [ServersTransport](https://doc.traefik.io/traefik/routing/services/#serverstransport_1) configuration that uses [`insecureSkipVerify`](https://doc.traefik.io/traefik/routing/services/#insecureskipverify):
 
