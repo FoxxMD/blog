@@ -199,8 +199,12 @@
       {% endif %}
 
       {% if _label_link != '' %}
+        {% assign _target = '_self' %}
+        {% if _label_link contains 'http' %}
+          {% assign _target = '_blank' %}
+        {% endif %}
         {% capture _label %}
-        <a target="_blank" href="{{ _label_link | strip }}" data-label-text="{{ _label_text | strip }}"><i class="{{ _label_icon }}"></i></a>
+        <a target="{{ _target }}" href="{{ _label_link | strip }}" data-label-text="{{ _label_text | strip }}"><i class="{{ _label_icon }}"></i></a>
       {% endcapture %}
       {% else %}
         {% capture _label %}
