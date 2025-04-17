@@ -1,0 +1,32 @@
+---
+---
+
+@use 'main
+{%- if jekyll.environment == ' production ' -%}
+  .bundle
+{%- endif -%}
+';
+
+/* append your custom style below */
+
+.code-header {
+  a {
+    margin-left: -0.875rem;
+    line-height: 2.25rem;
+
+    i {
+      position: relative;
+      top: 1px;
+      font-size: 1rem;
+      width: 1.75rem;
+      color: var(--code-header-icon-color);
+    }
+
+    &::after {
+      content: attr(data-label-text);
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--code-header-text-color);
+    }
+  }
+}
