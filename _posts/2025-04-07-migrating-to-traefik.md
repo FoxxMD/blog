@@ -139,6 +139,9 @@ The actual implementation is always more difficult than how it looks on paper, b
 
 In each section below I lightly cover the differences between SWAG/Traefik, what was needed to migrate to Traefik, and how I implemented it along with examples, if necessary.
 
+> This guide and the [companion repository](https://github.com/FoxxMD/traefik-homelab) use **user-defined docker networks** for all examples. To make these examples work you will first need to create these OR modify the examples to use default bridge networking (`HOST_IP:PUBLISHED_PORT`). [**See networking differences and guide networking setup below for instructions.**](#user-defined-vs-default-bridge-networking)
+{: .prompt-warning}
+
 ### Web Routing Parity
 
 This was the hardest requirement to meet for **edge cases**. Unlike NGINX,
@@ -1589,13 +1592,118 @@ services:
 
 See the [traefik repository for a full stack with Logdy config included.](https://github.com/FoxxMD/traefik-homelab/blob/main/traefik_internal/compose.yaml#L77)
 
+### User-Defined vs Default Bridge Networking
+
+This guide and companion repository exclusively use [intra-stack](https://docs.docker.com/compose/how-tos/networking/) and [`external`](https://docs.docker.com/reference/compose-file/networks/#external), [`attachable`](https://docs.docker.com/reference/compose-file/networks/#attachable) [user-defined `bridge`](https://docs.docker.com/engine/network/drivers/bridge/#differences-between-user-defined-bridges-and-the-default-bridge) (or [**overlay**](#swarm-and-overlay)) [networks](https://docs.docker.com/compose/how-tos/networking/).
+
+Using these networks allows all related services to be addressed by their **container name** and **internal** ports which removes the need to hardcode IP addresses, publish ports, and makes the examples in this guide portable.
+
+You *should* use user-defined networks if you plan to implement the [separating internal/external sevices section](#separating-internalexternal-services) but for all the other sections its not *required* (but strongly encouraged!). If you do not want to use external networks you can simply replace instances of `container_name:internal_port` in stacks/ENVs with `host_ip:published_port`.
+
+<details markdown="1">
+
+<summary>Examples of Differences</summary>
+
+<details markdown="1">
+
+<summary>User-Defined Networks</summary>
+
+```yaml
+services:
+  traefik:
+    # ...
+  traefik-redis:
+    container_name: traefik_internal_redis
+    image: redis:7-alpine
+    networks:
+      - kop_overlay
+      - default
+    # ...
+networks:
+  kop_overlay:
+    external: true
+```
+{: file="traefik_internal/compose.yaml"}
+
+```yaml
+services:
+  traefik-kop:
+    image: "ghcr.io/jittering/traefik-kop:latest"
+    networks:
+      - kop_overlay
+      - default
+    environment:
+      - "REDIS_ADDR=traefik_internal_redis:6379" # automatically resolves to an internal docker network IP like 10.0.2.14
+      # ...
+networks:
+  kop_overlay:
+    external: true
+```
+{: file="traefik_kop/compose.yaml"}
+
+</details>
+
+<details markdown="1">
+
+<summary>Default Bridge Networking</summary>
+
+```yaml
+services:
+  traefik:
+    # ...
+  traefik-redis:
+    container_name: traefik_internal_redis
+    image: redis:7-alpine
+    networks:
+      - default
+    ports:
+      - "7000:6379"
+    # ...
+```
+{: file="traefik_internal/compose.yaml"}
+
+```yaml
+services:
+  traefik-kop:
+    image: "ghcr.io/jittering/traefik-kop:latest"
+    networks:
+      - default
+    environment:
+      - "REDIS_ADDR=192.168.0.100:7000" # IP is docker host machine LAN address
+      # ...
+```
+{: file="traefik_kop/compose.yaml"}
+
+</details>
+
+</details>
+
+#### Setup Networks from Guide
+
+There are four user-defined networks used in this guide and [companion repository.](https://github.com/FoxxMD/traefik-homelab?tab=readme-ov-file#networks)
+
+If you plan on using this guide to setup Traefik for traffic over multiple machines you will need to setup [Swarm and Overlay](#swarm-and-overlay) networks to use them. If you do not set this up you will need to use Default Bridge Networking for any example that communicates between different machines.
+
+If all setup is being done on one machine then you can still use the user-defined networks below, just replace `--driver=overlay` with `--driver=bridge`.
+
+Reference [Creating Docker Networks](https://docs.docker.com/reference/cli/docker/network/create/)
+
+```shell
+docker network create --driver=overlay --attachable internal_overlay
+docker network create --driver=overlay --attachable --subnet=10.99.0.0/24 public_overlay
+docker network create --driver=overlay --internal --attachable kop_overlay
+docker network create --driver=overlay --internal --attachable crowdsec_overlay
+```
+
+Any unused subnet can be used for `public_overlay`.
+
 ### Swarm and Overlay
 
 #### What/Why Overlay?
 
-[Docker Networks](https://docs.docker.com/engine/network/) provide many benefits to the containers attached to them like network isolation and automatic hostname resolution to private IP in the network (reach by container name IE `http://myContainerName` => `http://10.0.5.26`). However, with (Standalone) Docker all of the [Networks types](https://docs.docker.com/engine/network/drivers/) that can be created (`host bridge ipvlan`) can only be used on the same machine they were created on. If you need containers on different hosts to communicate this can only be done through the [host `bridge`](https://docs.docker.com/engine/network/drivers/bridge/) and the remote container must publish a port to its host IE `http://HOST_IP:PORT` => `http://192.168.0.1:5770`.
+[User-Defined Docker Networks](https://docs.docker.com/engine/network/drivers/bridge/#differences-between-user-defined-bridges-and-the-default-bridge) provide many benefits to the containers attached to them like network isolation and automatic hostname resolution to private IP in the network (reach by container name IE `http://myContainerName` => `http://10.0.5.26`). However, with (Standalone) Docker all of the [Networks types](https://docs.docker.com/engine/network/drivers/) that can be created (`host bridge ipvlan`) can only be used on the same machine they were created on. If you need containers on different hosts to communicate this can only be done through the [default `bridge` network](https://docs.docker.com/engine/network/drivers/bridge/) and the remote container must publish a port to its host IE `http://HOST_IP:PORT` => `http://192.168.0.1:5770`.
 
-There is *another* network type, [**Overlay**](https://docs.docker.com/engine/network/drivers/overlay/), that solves this problem. Overlay networks *span all hosts* by communicating through internal bridges on each host's Docker daemon. All of the benefits (network isolation, hostname resolution, etc...) of a docker network are preserved but the containers can be running on any host attached to the network. However, **to use this network type your hosts must be in a [Docker Swarm](https://docs.docker.com/engine/swarm/).**
+There is *another* user-defined network type, [**Overlay**](https://docs.docker.com/engine/network/drivers/overlay/), that solves this problem. Overlay networks *span all hosts* by communicating through internal bridges on each host's Docker daemon. All of the benefits (network isolation, hostname resolution, etc...) of a user-defined docker network are preserved but the containers can be running on any host attached to the network. However, **to use this network type your hosts must be in a [Docker Swarm](https://docs.docker.com/engine/swarm/).**
 
 #### Should You Swarm?
 
@@ -1658,12 +1766,7 @@ docker network create --driver=overlay --attachable my_overlay_net
 
 This must be done from a manager node. After creating the network, it will only be listed on a host's networks (`docker network ls`) *if there is an existing container attached to it.*
 
-If you are creating an overlay network for [use with external traefik services (following this guide)](#by-isolated-docker-network) then make sure to [specify an unused subnet](https://docs.docker.com/reference/cli/docker/network/create/#specify-advanced-options) that can be used for firewall rules later (next post!)
-
-
-```shell
-docker network create --driver=bridge --attachable --subnet=10.99.0.0/24 public_net
-```
+**Follow the instructions from the [networking setup section above](#setup-networks-from-guide) to create the overlay networks needed for this guide.**
 
 To use an overlay network in a compose stack, it must be defined in [top-level networking](https://docs.docker.com/reference/compose-file/networks/) as [`external`](https://docs.docker.com/reference/compose-file/networks/#external):
 
