@@ -36,17 +36,56 @@ In a homelab environment where services are being spun up/down, created, moved b
 
 ##### NGINX Service Configuration Ownership
 
-As my homelab continues to grow I have gravitated towards each Stack owning its own configuration. Through mechanisms like `environment` in `compose.yaml` or configs committed to git alongside `compose.yaml` etc., having the service-as-code live next to all the data needed run the service makes it more portable and reduces the cognitive scope required to configure it. NGINX config files need to be physically accessible to it and that is not a *feasible* option when services run on other hosts.
+As my homelab continues to grow I have gravitated towards each Stack owning its own configuration. Through mechanisms like `environment` in `compose.yaml` or configs committed to git alongside `compose.yaml` etc., having the service-as-code [live next to all the data needed run the service](#dynamic-label) makes it more portable and reduces the cognitive scope required to configure it. NGINX config files need to be physically accessible to it and that is not a *feasible* option when services run on other hosts.
 
 ##### SWAG is Tightly Coupled and Opinionated
 
 LSIO does an excellent job making setup with NGINX easy by using [SWAG](https://docs.linuxserver.io/general/swag/). For simple setups and users just dipping their toes into the space it's a fantastic tool for getting started quickly without requiring any hand-holding.
 
-However, it has shortfalls which appear for more complex use-cases. Some of these are limitations of nginx, such as needing the user to [edit .ini files for DNS ACME challenge, while other solutions only need ENVs](http://localhost:4000/posts/migrating-to-traefik/#wildcards). 
+However, it has shortfalls which appear for more complex use-cases. Some of these are limitations of nginx, such as needing the user to [edit .ini files for DNS ACME challenge, while other solutions only need ENVs](#wildcards).
 
 Others are due to the reality of limited developer-hours needing to fulfill only the most common use-case, like LSIO's [cloudflare docker mod](https://github.com/linuxserver/docker-mods/tree/universal-cloudflared) configuration only working with one domain even though a tunnel can be used for multiple domains -- one domain is the most common use-case and easiest to script for. In this scenario, "fixing" the problem means refactoring the entire stack to remove universal-cloudflare and implementing your own `cloudflared` container.
 
 If most scenarios end with the user having to implement the decoupled solution anyway...why not consider other reverse proxy solutions since we aren't tied to SWAG anymore?
+
+##### SWAG Cert Management Feels Bad
+
+I'll admit this is entirely personal opinion. SWAG has two ENVs used for configuring a cert *for a first domain:* `URL` and `SUBDOMAINS`.
+
+```yaml
+environment:
+  URL: yourdomain.url
+  SUBDOMAINS: www,example1,example2
+```
+{: file="compose.yaml"}
+
+To add additional domains (with their subdomains) you need to use a third ENV that combines both in away that you would have assumed the original ENVs could have been used:
+
+```diff
+environment:
+  URL: yourdomain.url
+  SUBDOMAINS: www,example1,example2
++ EXTRA_DOMAINS: yourdomainfoo.url,yourdomainbar.url,sub1.yourdomainbar.url
+```
+{: file="compose.yaml"}
+
+Why isn't the syntax for `EXTRA_DOMAINS` the way "everything" works? I imagine it's a backward compatibility thing but it rubs me the wrong way.
+
+Additionally, to change this generating a wildcard cert all of the ENVs need to change...again.
+
+```diff
+environment:
+  URL: yourdomain.url
+- SUBDOMAINS: www,example1,example2
++ SUBDOMAINS: wildcard
+- EXTRA_DOMAINS: yourdomainfoo.url,yourdomainbar.url
++ EXTRA_DOMAINS: yourdomainfoo.url,*.yourdomainfoo.url,yourdomainbar.url,*.yourdomainbar.url
+```
+{: file="compose.yaml"}
+
+It's not exactly *complex* but it definitely isn't intuitive either. Compare this to how [Traefik does it, either automatically or with idiomatic YAML config.](#cert-management) 
+
+Traefik also has the advantange of being able to configure [DNS challenge provider via ENV](#wildcards) while SWAG requires finding an [`.ini` file](https://github.com/linuxserver/docker-swag/tree/master/root/defaults/dns-conf) in the SWAG service's [config directory](https://docs.linuxserver.io/general/swag/#docker-compose), and then [editing the file to hardcode our DNS provider's credentials.](https://github.com/linuxserver/docker-swag/blob/master/root/defaults/dns-conf/cloudflare.ini)
 
 ##### Lack of Dashboard
 
@@ -284,9 +323,9 @@ Check the [FAQ](#faq) at the bottom for more examples like
 
 ### Cert Management
 
-Both SWAG and Traefik offer automated SSL cert generation but I found Traefik's setup to be vastly easier to understand and configure than SWAGs.
+Both SWAG and Traefik offer automated SSL cert generation but I found Traefik's setup to be vastly easier to understand and configure [than SWAGs.](#swag-cert-management-feels-bad)
 
-For a simple setup, say one domain + subdomain using http verification, both providers are moderately equivalent. SWAG does everything using [container ENVs](https://docs.linuxserver.io/general/swag/#create-container-via-http-validation) which is attractive.
+For a simple setup, say one domain + subdomain using *http verification*, both providers are moderately equivalent. SWAG does everything using [container ENVs](https://docs.linuxserver.io/general/swag/#create-container-via-http-validation) which is attractive.
 
 Traefik requires setting up a [cert resolver and entrypoint](https://doc.traefik.io/traefik/https/acme/#configuration-examples) which can be done via file or as labels on a docker container (not recommended).
 
@@ -300,21 +339,9 @@ labels:
 
 on a docker container then Traefik will automatically get a cert for `example.com`. That's pretty nice. 
 
-To do the same with SWAG you need to define ENVs for a main URL/domain, all subdomains, and `EXTRA_DOMAIN` for all additional domains:
-
-```yaml
-environment:
-  URL: yourdomain.url
-  SUBDOMAINS: www,example1,example2
-  EXTRA_DOMAINS: yourdomainfoo.url,yourdomainbar.url
-```
-{: file="compose.yaml"}
-
-It's...weird to need two different ENVs to define domains.
-
 #### Wildcards
 
-But this is where Traefik really shines. To use wildcard certs with Traefik, we add a few more lines to our existing [static config](#static-file), specifying the dns challenge provider and explicitly defining the domains:
+This is where Traefik really shines. To use wildcard certs with Traefik, we add a few more lines to our existing [static config](#static-file), specifying the dns challenge provider and explicitly defining the domains:
 
 ```diff
 entryPoints
@@ -356,23 +383,7 @@ services:
 ```
 {: file="compose.yaml" link="https://github.com/FoxxMD/traefik-homelab/blob/main/traefik_internal/compose.yaml#L14"}
 
-To setup wildcards with SWAG we need to modify service ENVs
-
-```diff
-environment:
-  URL: yourdomain.url
-- SUBDOMAINS: www,example1,example2
-+ SUBDOMAINS: wildcard
-- EXTRA_DOMAINS: yourdomainfoo.url,yourdomainbar.url
-+ EXTRA_DOMAINS: yourdomainfoo.url,*.yourdomainfoo.url,yourdomainbar.url,*.yourdomainbar.url
-+ VALIDATION=dns
-```
-{: file="compose.yaml"}
-
-then find our provider's [`.ini` file](https://github.com/linuxserver/docker-swag/tree/master/root/defaults/dns-conf) in the SWAG service's [config directory](https://docs.linuxserver.io/general/swag/#docker-compose), and [edit the file to hardcode our DNS provider's credentials.](https://github.com/linuxserver/docker-swag/blob/master/root/defaults/dns-conf/cloudflare.ini)
-
-I don't particularly like having credentials hardcoded like that and `EXTRA_DOMAINS` still feelsbadman.jpg
-
+And that's it! Compare this to the [wildcard setup required for SWAG](#swag-cert-management-feels-bad)...Traefik feels easier.
 
 #### Cloudflare Tunnels {#certs-and-cf-tunnels}
 
@@ -739,7 +750,7 @@ For CF Tunnels with SWAG there are two [LSIO docker mods](https://docs.linuxserv
 * [`universal-cloudflared`](https://github.com/linuxserver/docker-mods/tree/universal-cloudflared) - Installs `cloudflared` directly into the SWAG container and uses `CF_*` ENVs to automate setup via CLI (or `CF_REMOTE_MANAGE_TOKEN` to pull config from CF dashboard)
 * [`cloudflare_real-ip`](https://github.com/linuxserver/docker-mods/tree/swag-cloudflare-real-ip) - pulls CF edge server IPs into a list that Nginx can use. It also requires adding a few Nginx directives to your config in order to use this list to set real IP.
 
-We can achieve the same as above by setting up `cloudflared` as its own container and using a the [traefik plugin](https://doc.traefik.io/traefik/plugins/) [cloudflarewarp](https://github.com/PseudoResonance/cloudflarewarp) to parse CF edge server IPs.
+We can achieve the same as above, for Traefik, by setting up `cloudflared` as its own container and using a the [traefik plugin](https://doc.traefik.io/traefik/plugins/) [cloudflarewarp](https://github.com/PseudoResonance/cloudflarewarp) to parse CF edge server IPs.
 
 #### `cloudflared` Tunnel Container Setup
 
