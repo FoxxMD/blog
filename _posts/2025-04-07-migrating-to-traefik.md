@@ -1488,7 +1488,7 @@ providers:
 
 #### Dynamic Config In Labels {#dynamic-label}
 
-All routers/services/middlewares that are specific to a docker service are defined using [docker labels](https://doc.traefik.io/traefik/providers/docker/#routing-configuration-with-labels) on that service (with exceptions [mentioned above](#dyanmic-file)). The docker service should "own" as much of the configuration for defining how it is wired up to traefik as possible.
+All routers/services/middlewares that are specific to a docker service are defined using [docker labels](https://doc.traefik.io/traefik/providers/docker/#routing-configuration-with-labels) on that service (with exceptions [mentioned above](#dynamic-file)). The docker service should "own" as much of the configuration for defining how it is wired up to traefik as possible.
 
 ```yaml
 services:
@@ -1626,7 +1626,7 @@ services:
 
 ### Viewing Realtime Logs
 
-[Logdy](https://logdy.dev/) can be used with [traefik's access logs json file](#access-logs) to view Traefik access in realtime. The setup is basically the same as my previous post on setting up [NGINX with Dockerized Logdy](nginx-logdy-docker/), if you are interested in the details.
+[Logdy](https://logdy.dev/) can be used with [traefik's access logs json file](#access-logs) to view Traefik access in realtime. The setup is basically the same as my previous post on setting up [NGINX with Dockerized Logdy](../nginx-logdy-docker/), if you are interested in the details.
 
 See the [traefik repository for a full stack with Logdy config included.](https://github.com/FoxxMD/traefik-homelab/blob/main/traefik_internal/compose.yaml#L77)
 
