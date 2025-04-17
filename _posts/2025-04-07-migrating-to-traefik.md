@@ -3,7 +3,7 @@ title: Migrating from SWAG/Nginx to Traefik
 description: >-
   Moving multi-host external/internal services, SSL, cloudflare tunnels, and crowdsec to Traefik without Swarm
 author: FoxxMD
-date: 2025-04-07 10:00:00 -0400
+date: 2025-04-17 12:55:00 -0400
 categories: [Tutorial]
 tags: [nginx, swag, docker, swarm, traefik, crowdsec, cloudflare, ssl, dns]
 pin: false
