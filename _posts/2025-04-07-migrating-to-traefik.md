@@ -28,17 +28,17 @@ This post is:
 
 ### Why?
 
-##### NGINX Configuration is Static
+#### NGINX Configuration is Static
 
 This is the single most important reason I had for migrating away from NGINX. 
 
 In a homelab environment where services are being spun up/down, created, moved between hosts, renamed, etc...having to 1) remember to update NGINX config and then restart it and 2) keep track of IP:PORT or specific config per application is a pain. NGINX was designed during a time when network topology wasn't so dynamic, so it's not built with a homelab use-case in mind. It's also not built with today's paradigms in mind, such as [first-class environmental substitution](https://www.baeldung.com/linux/nginx-config-environment-variables) or [easy-to-read config validation.](https://github.com/dvershinin/gixy)
 
-##### NGINX Service Configuration Ownership
+#### NGINX Service Configuration Ownership
 
 As my homelab continues to grow I have gravitated towards each Stack owning its own configuration. Through mechanisms like `environment` in `compose.yaml` or configs committed to git alongside `compose.yaml` etc., having the service-as-code [live next to all the data needed run the service](#dynamic-label) makes it more portable and reduces the cognitive scope required to configure it. NGINX config files need to be physically accessible to it and that is not a *feasible* option when services run on other hosts.
 
-##### SWAG is Tightly Coupled and Opinionated
+#### SWAG is Tightly Coupled and Opinionated
 
 LSIO does an excellent job making setup with NGINX easy by using [SWAG](https://docs.linuxserver.io/general/swag/). For simple setups and users just dipping their toes into the space it's a fantastic tool for getting started quickly without requiring any hand-holding.
 
@@ -48,7 +48,7 @@ Others are due to the reality of limited developer-hours needing to fulfill only
 
 If most scenarios end with the user having to implement the decoupled solution anyway...why not consider other reverse proxy solutions since we aren't tied to SWAG anymore?
 
-##### SWAG Cert Management Feels Bad
+#### SWAG Cert Management Feels Bad
 
 I'll admit this is entirely personal opinion. SWAG has two ENVs used for configuring a cert *for a first domain:* `URL` and `SUBDOMAINS`.
 
@@ -87,13 +87,13 @@ It's not exactly *complex* but it definitely isn't intuitive either. Compare thi
 
 Traefik also has the advantange of being able to configure [DNS challenge provider via ENV](#wildcards) while SWAG requires finding an [`.ini` file](https://github.com/linuxserver/docker-swag/tree/master/root/defaults/dns-conf) in the SWAG service's [config directory](https://docs.linuxserver.io/general/swag/#docker-compose), and then [editing the file to hardcode our DNS provider's credentials.](https://github.com/linuxserver/docker-swag/blob/master/root/defaults/dns-conf/cloudflare.ini)
 
-##### Lack of Dashboard
+#### Lack of Dashboard
 
 NGINX does not have a dashboard unless you are paying for enterpise (NGINX Plus). SWAG has a [docker mod for Goaccess](https://github.com/linuxserver/docker-mods/tree/swag-dashboard) but that is more traffic-focused then NGINX config-related. [NPM does have a dashboard](https://nginxproxymanager.com/screenshots/) as does [Traefik](https://doc.traefik.io/traefik/operations/dashboard/).
 
 Having a dashboard with relevant config metrics and error troubleshooting becomes a must as the number of services served grows.
 
-##### NGINX/SWAG does not have first-class Service Discovery
+#### NGINX/SWAG does not have first-class Service Discovery
 
 SWAG offers the docker mod [swag-auto-proxy](https://github.com/linuxserver/docker-mods/tree/swag-auto-proxy) which generates nginx confs for services discovered by docker label on the same machine NGINX is running on. I forked this as [swag-auto-proxy-multi](https://github.com/FoxxMD/docker-mods/tree/swag-auto-proxy-multi) and wrote new functionality to enable it to work with multiple hosts using [docker-socket-proxy](https://docs.linuxserver.io/images/docker-socket-proxy/). 
 
