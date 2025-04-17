@@ -367,10 +367,10 @@ certificatesResolvers:
     acme:
       email: "info@foo.com"
       storage: "/letsencrypt/acme.json"
--      httpChallenge:
--        entryPoint: web
-+      dnsChallenge:
-+        provider: cloudflare
+-     httpChallenge:
+-       entryPoint: web
++     dnsChallenge:
++       provider: cloudflare
 ```
 {: file="/etc/traefik/traefik.yaml" link="https://github.com/FoxxMD/traefik-homelab/blob/main/traefik_internal/traefik/static_config/traefik.yaml#L64-L65"}
 
@@ -382,7 +382,7 @@ services:
     # ...
     environment:
       FOO: BAR
-+      CF_DNS_API_TOKEN: ${CF_DNS_API_TOKEN}
++     CF_DNS_API_TOKEN: ${CF_DNS_API_TOKEN}
 ```
 {: file="compose.yaml" link="https://github.com/FoxxMD/traefik-homelab/blob/main/traefik_internal/compose.yaml#L14"}
 
@@ -513,12 +513,15 @@ accessLog:
 {: file="/etc/traefik/traefik.yaml" link="https://github.com/FoxxMD/traefik-homelab/blob/main/traefik_external/traefik/static_config/traefik.yaml#L1"}
 
 
-Make sure to mount the log dir to your host filesystem and then add the rest of the access log functionality to `compose.yaml`
+Make sure to mount the log dir to your host filesystem, add socket-proxy to the [`crowdsec_net` network](#setup-networks-from-guide), and add the rest of the access log functionality to `compose.yaml`
 
 ```yaml
 services:
   traefik:
   # ...
+    networks:
+      # ...
+      - crowdsec_net
     volumes:
       # ...
       - ./traefik/log:/var/log/traefik:rw
@@ -557,7 +560,9 @@ services:
     restart: unless-stopped
   socket-proxy:
     image: lscr.io/linuxserver/socket-proxy:latest
-    container_name: socket-proxy
+    container_name: traefik-ext-socket-proxy
+    networks:
+      - crowdsec_net
     environment:
       - CONTAINERS=1
       - POST=0
@@ -569,8 +574,15 @@ services:
     read_only: true
     tmpfs:
       - /run
+
+networks:
+  # ...
+  crowdsec_net:
+    external: true
 ```
 {: file="traefik_external/compose.yaml" link="https://github.com/FoxxMD/traefik-homelab/blob/main/traefik_external/compose.yaml#L37"}
+
+`tail-log` can then be used with [Logdy to view access in realtime](http://localhost:4000/posts/migrating-to-traefik/#viewing-realtime-logs).
 
 #### Setup Crowdsec Local API {#crowdsec-local-api}
 
@@ -634,7 +646,7 @@ This command will output a **bouncer key**. Save this for [traefik bouncer setup
       # important to make this a worker
       - "DISABLE_LOCAL_API=true"
       - "LEVEL_INFO=true"
-      - "LOCAL_API_URL=http://CS_LAPI_INSTANCE_HOST_IP:8080"
+      - "LOCAL_API_URL=http://crowdsec:8080"
     ports:
       - "6061:6060/tcp"
     restart: "always"
@@ -664,7 +676,7 @@ api:
 Modify `local_api_credentials.yaml` to use the username/**LAPI password** we got in the [previous step.](#crowdsec-local-api)
 
 ```yaml
-url: http://CROWDSEC_LOCAL_API_HOST:8080
+url: http://crowdsec:8080
 login: MyChildMachine
 password: 9W0Mtyh5lJ1Hks29BxN4arPKA06t264J8TvIh9Uxu1fyHAVGO22AcWNbx8Oh4tJ
 ```
@@ -676,7 +688,7 @@ Finally, modify `acquis.yaml` to add the docker data source for our `tail-log` c
 source: docker
 container_name:
  - tail-log
-docker_host: tcp://TRAEFIK_HOST_IP:2375
+docker_host: tcp://traefik-ext-socket-proxy:2375
 labels:
   type: traefik
   ```
@@ -686,17 +698,20 @@ Now `crowdsec-ingest` can be restarted and should be processing traefik logs as 
 
 #### Setup Traefik Crowdsec Bouncer {#traefik-bouncer-setup}
 
-Add the `crowdsec` service IP and **bouncer key**, [generated earlier](#crowdsec-local-api), to traefik as environmental variables.
+Add the `crowdsec` service IP and **bouncer key** [generated earlier](#crowdsec-local-api) to traefik as environmental variables. Also add [`crowdsec_net` network](#setup-networks-from-guide) to traefik if you have not already.
 
 ```yaml
   traefik:
     image: "traefik:v3.3"
+    networks:
+      # ...
+      - crowdsec_net
     # ...
     environment:
       # ...
       # better in .env or as secret
       CS_TRAEFIK_BOUNCER_KEY: o2siyq4Dt92N9sQCbiRVIHjXWstr5jIwU7Puhxws
-      BOUNCER_HOST: CROWDSEC_LOCAL_API_HOST:PORT
+      BOUNCER_HOST: crowdsec:8080
 ```
 {: file="traefik_external/compose.yaml" link="https://github.com/FoxxMD/traefik-homelab/blob/main/traefik_external/compose.yaml#L17-L18"}
 
@@ -789,6 +804,7 @@ networks:
     # for traefik to recognize as trusted IP range
       config:
         - subnet: 172.28.0.0/16
+  # ...
 ```
 {: file="traefik_external/compose.yaml" link="https://github.com/FoxxMD/traefik-homelab/blob/main/traefik_external/compose.yaml#L81-L88"}
 
@@ -801,10 +817,7 @@ Now we need to 1) tell Traefik to accept CF Tunnel traffic on an [entrypoint](ht
 In your traefik [static config](#static-file) configure an entrypoint with a port and [forwarded headers](https://doc.traefik.io/traefik/routing/entrypoints/#forwarded-headers) so traefik knows to use CF IP as "request from" IP, rather than the `cloudflared` container internal IP. We will then use this later to get the [actual "request from" IP.](#cf-real-ip-forwarding)
 
 ```yaml
-providers:
-  file:
-    directory: /config/dynamic
-    watch: true
+# ...
 entryPoints:
   cf:
     # address CF tunnel config is pointed to on traefik container
@@ -1043,7 +1056,7 @@ So you can mix-and-match stacks attached to overlay networks with those running 
 
 ###### Setup traefik-kop
 
-Add a Redis server to your traefik stack:
+Add a Redis server to your traefik stack attached to the [`kop_net` network](#setup-networks-from-guide):
 
 ```yaml
 services:
@@ -1051,13 +1064,20 @@ services:
     # ...
   traefik-redis:
     restart: always
+    container_name: traefik_internal_redis
     image: redis:7-alpine
-    ports:
-      - "6379:6379"
+    networks:
+      - traefik_internal
+      - kop_net
     healthcheck:
       test: ['CMD', 'redis-cli', 'ping']
     volumes:
-      - $DOCKER_DATA/traefik/redis:/data
+      - ./traefik/redis:/data
+# ...
+networks:
+  # ...
+  kop_net:
+    external: true
 ```
 {: file="traefik_internal/compose.yaml" link="https://github.com/FoxxMD/traefik-homelab/blob/main/traefik_internal/compose.yaml#L63-L75"}
 
@@ -1071,15 +1091,18 @@ providers:
 ```
 {: file="/etc/traefik/traefik.yaml" link="https://github.com/FoxxMD/traefik-homelab/blob/main/traefik_internal/traefik/static_config/traefik.yaml#L28-L30"}
 
-Next, on each docker host, create a new stack for kop. I prefer to connect it to docker using [docker-socket-proxy](https://docs.linuxserver.io/images/docker-socket-proxy) since it only needs limited, read-only capabilities.
+Next, on each docker host, create a new stack for kop and attach it to the [`kop_net` network](#setup-networks-from-guide). I prefer to connect it to docker using [docker-socket-proxy](https://docs.linuxserver.io/images/docker-socket-proxy) since it only needs limited, read-only capabilities.
 
 ```yaml
 services:
   traefik-kop:
     image: "ghcr.io/jittering/traefik-kop:latest"
+    networks:
+      - default
+      - kop_net
     restart: unless-stopped
     environment:
-      - "REDIS_ADDR=192.168.TRAEFIK.REDISIP:6379"
+      - "REDIS_ADDR=traefik_internal_redis:6379"
       - "DOCKER_HOST=tcp://socket-proxy:2375"
       - "BIND_IP=192.168.HOST.IP"
       - "KOP_HOSTNAME=${HOSTNAME:-generic}"
@@ -1099,6 +1122,10 @@ services:
     read_only: true
     tmpfs:
       - /run
+networks:
+  # ...
+  kop_net:
+    external: true
 ```
 {: file="traefik_kop/compose.yaml" link="https://github.com/FoxxMD/traefik-homelab/blob/main/traefik_kop/compose.yaml"}
 
@@ -1119,7 +1146,7 @@ services:
 ```
 {: file="compose.yaml"}
 
-If you are using an **overlay network** then the port does not *need* to be published and the port for traefik should be the "internal" port...
+If you are using an [**overlay/user-defined network**](#user-defined-vs-default-bridge-networking) then the port does not *need* to be published and the port for traefik should be the "internal" port...
 
 ```yaml
 services:
@@ -1129,8 +1156,12 @@ services:
     labels:
       # ...
       traefik.http.services.foo.loadbalancer.server.port: 8080
-      traefik.docker.network: my_overlay
+      traefik.docker.network: internal_web
 # ...
+networks:
+  # ...
+  internal_web:
+    external: true
 ```
 {: file="compose.yaml"}
 
@@ -1206,62 +1237,69 @@ In addition to network-level separation this requires *more* explicit configurat
 
 #### Setup {#separate-network-setup}
 
-First, create [externally-managed docker networks](https://docs.docker.com/reference/cli/docker/network/create/) for your two, new web ingress networks. Make sure you [specify an unused subnet](https://docs.docker.com/reference/cli/docker/network/create/#specify-advanced-options) for the external network (we can use it in the next post on firewalling external networks...)
-
-```shell
-docker network create --driver=bridge --subnet=10.99.0.0/24 public_net
-docker network create --driver=bridge internal_net
-```
+First, create [user-defined docker networks](#user-defined-vs-default-bridge-networking) for the two, new web ingress networks: [`public_web` and `internal_web`](#setup-networks-from-guide).
 
 > Replace `--driver=bridge` with `--driver=overlay` if you have [swarm mode enabled (you should!)](#swarm-and-overlay)
 {: .prompt-tip }
 
 Create a new Stack for an external Traefik service and modify your existing one for use with internal services only (or however best fits your implementation). Each Traefik instances will get only one entrypoint based on where traffic comes from IE External -> entrypoint for [Cloudflare Tunnels](#cloudflare-tunnels-integration) only, Internal -> entrypoint for 80/443 with local dns. Make sure to add each instance of the respective network you just created.
 
-```yaml
+```diff
 services:
-  internalTraefik:
+  traefik:
   # ...
     networks:
-      - default
-      - internal_net
+      # ...
+#     - internal_web
   # ...
 networks:
-  internal_net:
-    external: true
+  # ...
++ internal_web:
++   external: true
 ```
 {: file="traefik_internal/compose.yaml" link="https://github.com/FoxxMD/traefik-homelab/blob/main/traefik_internal/compose.yaml#L7"}
 
-```yaml
+```diff
 services:
-  externalTraefik:
+  traefik:
   # ...
     networks:
-      - default
-      - public_net
+      # ...
++     - public_web
   # ...
 networks:
-  public_net:
-    external: true
+  # ...
++ public_web:
++   external: true
 ```
 {: file="traefik_external/compose.yaml" link="https://github.com/FoxxMD/traefik-homelab/blob/main/traefik_external/compose.yaml#L6"}
 
-Next, if you are using [traefik-kop for service discovery](#docker-standalone) then create an additional kop instance on each host. Modify each instance to use a [namespace](https://github.com/jittering/traefik-kop?tab=readme-ov-file#namespaces) so that kop knows which services should be sent to which traefik instance.
+Next, if you are using [traefik-kop for service discovery](#docker-standalone) then create an **additional** kop instance on each host.
 
-```yaml
+Specify the associated traefik redis host and modify each instance to use a [namespace](https://github.com/jittering/traefik-kop?tab=readme-ov-file#namespaces) so that kop knows which services should be sent to which traefik instance.
+
+```diff
 services:
-  traefik-kop-public:
+- traefik-kop
++ traefik-kop-internal:
     image: "ghcr.io/jittering/traefik-kop:latest"
+    # ...
     environment:
+      - "REDIS_ADDR=traefik_internal_redis:6379"
       # ...
-      - "NAMESPACE=public"
-    depends_on:
-      - socket-proxy
-  traefik-kop-internal:
-    image: "ghcr.io/jittering/traefik-kop:latest"
-    environment:
-      # ...
-      - "NAMESPACE=internal"
++     - "NAMESPACE=internal"
+    # ...
++ traefik-kop-public:
++   image: "ghcr.io/jittering/traefik-kop:latest"
++   networks:
++     - kop_overlay
++     - default
++   environment:
++     # ...
++     - "REDIS_ADDR=traefik_external_redis:6379"
++     - "NAMESPACE=public"
++   # ...
+# ...
 ```
 {: file="compose.yaml" link="https://github.com/FoxxMD/traefik-homelab/blob/main/traefik_kop/compose.yaml"}
 
@@ -1273,7 +1311,7 @@ services:
   # ...
     labels:
       # ...
-+     traefik.docker.network: public_net
++     traefik.docker.network: public_web
 +     kop.namespace: public      
 ```
 {: file="traefik_kop/compose.yaml"}
@@ -1306,7 +1344,7 @@ In a [**specific configuration file**](https://doc.traefik.io/traefik/getting-st
 * `/etc/traefik/traefik.yaml`
 * `$HOME/.config/traefik.yaml`
 * `./traefik.yaml` (the working directory)
-* a file defined as an argument to the traefik program IE `traefik --configFile=foo/bar/myconfigfile.yml`
+* a file defined as an argument to the traefik program IE `traefik --configFile=/foo/bar/myconfigfile.yml`
 
 **Dynamic and Static Configuration files cannot be mixed.**
 
@@ -1317,7 +1355,7 @@ In a [**specific configuration file**](https://doc.traefik.io/traefik/getting-st
 As a CLI argument to the traefik program. This can be plain command line or more commonly as part of `compose.yaml`. Example of same args in both places:
 
 ```shell
-traefik --providers.docker=true --providers.docker.exposedbydefault=false --providers.file.directory=/etc/traefik/dynamic
+traefik --providers.docker=true --providers.docker.exposedbydefault=false --providers.file.directory=/config/dynamic
 ```
 
 ```yaml
@@ -1326,7 +1364,7 @@ traefik --providers.docker=true --providers.docker.exposedbydefault=false --prov
     command:
       - "--providers.docker=true"
       - "--providers.docker.exposedbydefault=false"
-      - "--providers.file.directory=/etc/traefik/dynamic"
+      - "--providers.file.directory=/config/dynamic"
     # ...
 ```
 
@@ -1460,7 +1498,7 @@ services:
       traefik.enable: true
       traefik.http.routers.serviceA.rule: Host(`serviceA.example.com`)
       traefik.http.services.serviceA.loadbalancer.server.port: 3000
-      traefik.docker.network: internal_overlay
+      traefik.docker.network: internal_web
 ```
 {: file="compose.yaml" link="https://github.com/FoxxMD/traefik-homelab/blob/main/example_services/compose-internal-service.yaml"}
 
@@ -1616,11 +1654,11 @@ services:
     container_name: traefik_internal_redis
     image: redis:7-alpine
     networks:
-      - kop_overlay
+      - kop_net
       - default
     # ...
 networks:
-  kop_overlay:
+  kop_net:
     external: true
 ```
 {: file="traefik_internal/compose.yaml"}
@@ -1630,13 +1668,13 @@ services:
   traefik-kop:
     image: "ghcr.io/jittering/traefik-kop:latest"
     networks:
-      - kop_overlay
+      - kop_net
       - default
     environment:
       - "REDIS_ADDR=traefik_internal_redis:6379" # automatically resolves to an internal docker network IP like 10.0.2.14
       # ...
 networks:
-  kop_overlay:
+  kop_net:
     external: true
 ```
 {: file="traefik_kop/compose.yaml"}
@@ -1682,20 +1720,20 @@ services:
 
 There are four user-defined networks used in this guide and [companion repository.](https://github.com/FoxxMD/traefik-homelab?tab=readme-ov-file#networks)
 
-If you plan on using this guide to setup Traefik for traffic over multiple machines you will need to setup [Swarm and Overlay](#swarm-and-overlay) networks to use them. If you do not set this up you will need to use Default Bridge Networking for any example that communicates between different machines.
+If you plan on using this guide to setup Traefik **for traffic over multiple machines you will need to setup [Swarm and Overlay](#swarm-and-overlay) networks to use them.** If you do not set this up you will need to use [Default Bridge Networking](#user-defined-vs-default-bridge-networking) for any example that communicates between different machines.
 
 If all setup is being done on one machine then you can still use the user-defined networks below, just replace `--driver=overlay` with `--driver=bridge`.
 
 Reference [Creating Docker Networks](https://docs.docker.com/reference/cli/docker/network/create/)
 
 ```shell
-docker network create --driver=overlay --attachable internal_overlay
-docker network create --driver=overlay --attachable --subnet=10.99.0.0/24 public_overlay
-docker network create --driver=overlay --internal --attachable kop_overlay
-docker network create --driver=overlay --internal --attachable crowdsec_overlay
+docker network create --driver=overlay --attachable internal_web
+docker network create --driver=overlay --attachable --subnet=10.99.0.0/24 public_web
+docker network create --driver=overlay --internal --attachable kop_net
+docker network create --driver=overlay --internal --attachable crowdsec_net
 ```
 
-Any unused subnet can be used for `public_overlay`.
+Any unused subnet can be used for `public_web`.
 
 ### Swarm and Overlay
 
@@ -1758,7 +1796,7 @@ This does not cover everything required to setup Swarm/Overlay, just the high-le
 
 ##### Overlay
 
-Creating overlays is basically the same as creating any [externally-managed docker networks](https://docs.docker.com/reference/cli/docker/network/create/) except you should specify the `overlay` driver:
+Creating overlays is basically the same as creating any [user-defined docker networks](https://docs.docker.com/reference/cli/docker/network/create/) except you should specify the `overlay` driver:
 
 ```shell
 docker network create --driver=overlay --attachable my_overlay_net
@@ -1774,12 +1812,12 @@ To use an overlay network in a compose stack, it must be defined in [top-level n
 services:
   myService:
     networks:
-      - public_net
+      - public_web
       # uncomment to include default bridge network
       #- default
     # ...
 networks:
-  public_net:
+  public_web:
     external: true
 ```
 {: file="compose.yaml"}
