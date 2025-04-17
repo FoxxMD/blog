@@ -50,7 +50,7 @@ If most scenarios end with the user having to implement the decoupled solution a
 
 #### SWAG Cert Management Feels Bad
 
-I'll admit this is entirely personal opinion. SWAG has two ENVs used for configuring a cert *for a first domain:* `URL` and `SUBDOMAINS`.
+I'll admit this is entirely a personal opinion. SWAG has two ENVs used for configuring a cert *for a first domain:* `URL` and `SUBDOMAINS`.
 
 ```yaml
 environment:
@@ -59,7 +59,7 @@ environment:
 ```
 {: file="compose.yaml"}
 
-To add additional domains (with their subdomains) you need to use a third ENV that combines both in away that you would have assumed the original ENVs could have been used:
+To add additional domains (with their subdomains) you need to use a third ENV that combines both in a way that you would have assumed the original ENVs could have been used:
 
 ```diff
 environment:
@@ -71,7 +71,7 @@ environment:
 
 Why isn't the syntax for `EXTRA_DOMAINS` the way "everything" works? I imagine it's a backward compatibility thing but it rubs me the wrong way.
 
-Additionally, to change this generating a wildcard cert all of the ENVs need to change...again.
+Additionally, to change this to generating a wildcard cert all of the ENVs need to change...again.
 
 ```diff
 environment:
