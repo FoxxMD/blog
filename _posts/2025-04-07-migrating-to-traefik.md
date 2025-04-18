@@ -1133,7 +1133,7 @@ Finally, add labels to your docker services as if they are using the regular [do
 
 **Watch out for port used with traefik!**
 
-If you are using **host/bridge IP** for the container, then the port must be published and the port for traefik must be the "external" port...
+If you are using [**default bridge network**](#user-defined-vs-default-bridge-networking) (host IP) for the container, then the port must be published and the port for traefik must be the "external" port...
 
 ```yaml
 services:
@@ -1720,7 +1720,9 @@ services:
 
 There are four user-defined networks used in this guide and [companion repository.](https://github.com/FoxxMD/traefik-homelab?tab=readme-ov-file#networks)
 
-If you plan on using this guide to setup Traefik **for traffic over multiple machines you will need to setup [Swarm and Overlay](#swarm-and-overlay) networks to use them.** If you do not set this up you will need to use [Default Bridge Networking](#user-defined-vs-default-bridge-networking) for any example that communicates between different machines.
+If you plan on using this guide to setup Traefik **for traffic over multiple machines then you are strongly enouraged to use [Swarm and Overlay](#swarm-and-overlay) networks.** The networks shown below can only be setup for either 1) mutliple machines with Swarm/Overlay 2) or all on the same machine.
+
+If you are setting up with multiple machines and do not use Swarm/Overlay then you will need to use [Default Bridge Networking](#user-defined-vs-default-bridge-networking) for any example that communicates between different machines.
 
 If all setup is being done on one machine then you can still use the user-defined networks below, just replace `--driver=overlay` with `--driver=bridge`.
 
