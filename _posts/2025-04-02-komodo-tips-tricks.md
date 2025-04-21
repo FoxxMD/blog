@@ -31,6 +31,101 @@ Not from within Komodo the same way Core be can updated, unfortunately. However,
 * from mbecker (Komodo creator) [https://github.com/moghtech/komodo/discussions/220](https://github.com/moghtech/komodo/discussions/220)
 * from bpbradley [https://github.com/bpbradley/ansible-role-komodo](https://github.com/bpbradley/ansible-role-komodo)
 
+### How can I automate stack updates?
+
+Komodo has built-in checking for image updates on a Stack. These need to be enabled on each Stack. Find the configuration at
+
+> **Stack** -> **Config** section -> **Auto Update** -> **Poll For Updates**
+
+The interval at which Stacks/Images are polled for updates can be configured using the env `KOMODO_RESOURCE_POLL_INTERVAL` or `resource_poll_interval` variable found in the [Komodo Core configuration](https://komo.do/docs/setup/advanced#mount-a-config-file).
+
+Stacks can be automatically updated using **Auto Update** or **Full Stack Auto Update** toggles also found in the Stack's Config section.
+
+#### Updating Specific Stacks
+
+For simple stack matching based on name, wildcard, or regex (no lookbehind/backtracing) create a [**Procedure**](https://komo.do/docs/procedures#procedures) and use a **Batch Deploy** stage with your desired target.
+
+For more advanced filtering create an **Action** using the snippet below. Fill out the arrays at the top of the snippet with your **exclude** filter values.
+
+<details markdown="1">
+
+<summary>Action Snippet</summary>
+
+```ts
+// add values to each filter to NOT re-deploy if stack contains X
+const REPOS = []; // Stack X Repo 'MyName/MyRepo' includes ANY part of string Y from list
+const SERVER_IDS = []; // Stack X Server '67659da61af880a9d21f25be' matches string Y from list
+const TAGS = []; // Stack X Tags A,B,C like '67b8cb3ce8d02869dd500af6' matches string Y from list
+const STACKS = []; // Stack 'my-cool-stack' matches ANY part of string Y from list
+const SERVICES = []; // Stack X Service 'my-cool-service' includes ANY part of string Y from list
+const IMAGES = []; // Stack X Image 'lscr.io/linuxserver/socket-proxy:latest' includes ANY part of string Y from list
+
+const intersect = (a: Array<any>, b: Array<any>) => {
+    const setA = new Set(a);
+    const setB = new Set(b);
+    const intersection = new Set([...setA].filter(x => setB.has(x)));
+    return Array.from(intersection);
+}
+
+const availableUpdates = await komodo.read('ListStacks', {
+  query: {
+    specific: {
+      update_available: true
+    }
+  }
+});
+
+const candidates = availableUpdates.filter(x => {
+  if(REPOS.length > 0 && REPOS.some(x => x.info.repo.includes(x))) {
+      return false;
+  }
+  if(SERVER_IDS.length > 0 && SERVER_IDS.includes(x.info.server_id)) {
+    return false;
+  }
+  if(TAGS.length > 0 && intersect(TAGS, x.tags).length > 0) {
+    return false;
+  }
+  if(STACKS.length > 0 && STACKS.some(y => x.name.includes(y))) {
+    return false;
+  }
+  if(SERVICES.length > 0) {
+    const s = x.info.services.map(x => x.service);
+    if(s.some(x => SERVICES.some(y => x.includes(y)))) {
+      return false;
+    }
+  }
+  if(IMAGES.length > 0) {
+    const s = x.info.services.map(x => x.image);
+    if(s.some(x => IMAGES.includes(y => y.includes(s)))) {
+      return false;
+    }
+  }
+  return true;
+});
+
+console.log(`Redeploying:
+${candidates.map(x => x.name).join('\n')}`);
+
+// comment out the line below to test filtering without actually re-deploying anything
+await komodo.execute('BatchDeployStack', {pattern: candidates.map(x => x.id).join(',')});
+```
+
+Example: To re-deploy any stacks with image updates available EXCEPT any stack/service that contains the word `periphery`, modify the top arrays to contain:
+
+```ts
+const STACKS = ['periphery'];
+const SERVICES = ['periphery'];
+```
+
+</details>
+
+> Since v1.17.2 Both Actions and Procedures can now be [scheduled to run with CRON](https://github.com/moghtech/komodo/releases/tag/v1.17.2).
+{: .prompt-tip}
+
+#### Advanced Update Automation
+
+See Nick Cunningham's post: [**How To: Automate version updates for your self-hosted Docker containers with Gitea, Renovate, and Komodo**](https://nickcunningh.am/blog/how-to-automate-version-updates-for-your-self-hosted-docker-containers-with-gitea-renovate-and-komodo)
+
 ### How do I send alerts to platforms other than Discord/Slack? {#other-alert-endpoints}
 
 You will need to create an Alerter that uses the **Custom** endpoint with a service that can ingest it and forward it to your service.
