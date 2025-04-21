@@ -139,6 +139,54 @@ This will push the built image to the **local registry on the machine where the 
 
 This is the same as the Same-Machine Stack but requires setting up a local registry that Komodo can push to and your other machines can pull from. Popular, self-hosted git repo software like [Forgejo](https://forgejo.org/docs/latest/user/packages/container/) and [Gitea](https://docs.gitea.com/usage/packages/container) have registries built in and are easy to use but Docker requires registries to be secure-by-default (no HTTP) and covering reverse proxies or modifying the Docker Daemon are out the scope for this FAQ. You may want to check out my post on [LAN-Only DNS + HTTPS + Reverse Proxy with NGINX](../lan-reverse-proxy-https) for where to get started. (Traefik version coming soon!)
 
+### Is there a Homepage widget? {#homepage-widget}
+
+There is no officially integrated [Homepage](https://gethomepage.dev/) [widget](https://gethomepage.dev/widgets/) yet but [/u/stonkymcstonkalicous](https://www.reddit.com/user/stonkymcstonkalicous) (GH: [stonkage](https://github.com/stonkage)) on reddit shared a [Custom API widget](https://gethomepage.dev/widgets/services/customapi/) template to [display Total/Running/Unhealthy/Stopped Stacks:](https://www.reddit.com/r/selfhosted/comments/1k33oik/comment/mo72u6u/)
+
+First, You'll need an **API Key and Secret** for a Komodo User. (Settings -> Users -> Select User -> Api Keys section)
+
+> I would recommend creating a new "Read Only" Service User. Give it only permissions for Server/Stack Read. Create the API Key and copy the Secret as it will not be shown again.
+{: .prompt-tip}
+
+<details markdown="1">
+
+<summary>Custom API Widget Template</summary>
+
+```yaml
+ - Komodo:
+      icon: sh-komodo.png
+      description: Docker
+      widget:
+        type: customapi
+        url:  <YOUR KOMODO URL>/read/
+        refreshInterval: 15000
+        method: POST
+        headers:
+          content-type: application/json
+          x-api-key: <YOUR KOMODO KEY>
+          x-api-secret: <YOUR KOMODO SECRET>
+        requestBody:
+          type: GetStacksSummary
+          params: {}
+
+        display: block
+        mappings:
+          - field: total
+            label: Total Stacks
+            format: number
+          - field: running
+            label: Running
+            format: number
+          - field: unhealthy
+            label: Unhealthy
+            format: number
+          - field: down
+            label: Stopped
+            format: number
+```
+
+</details>
+
 ## Tips and Tricks
 
 ### Stacks in Monorepo vs. Stack Per Repo {#stacks-monorepo-vs-individual}
