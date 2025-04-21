@@ -478,16 +478,24 @@ In the new sync under `Config` Choose Mode: `Git Repo` and fill out the **Source
 
 Now, under **Resource Paths** add a new Path to a file you want to store the sync information in. For instance, to create a new file at the root of the repository use `main.toml`. If you used [Tags for limiting scope](#limiting-scope) specify this in the **Match Tags** section.
 
+Next, ensure that these config toggled are **Enabled**:
+
+* General -> **Managed**
+* General -> **Delete Unmanaged Resources** (Optional)
+* Include -> **Sync Resources**
+
 Now **Save** and then **Initialize** the file.
 
-You should now see that the Sync status is **Pending** and there are three actions available under **Execute**. Pending means that there is a difference between the current configuration of all (tagged) Resources in Komodo Core and the configuration found in the repository (under `main.toml`). The difference, at this point, is that there is nothing in `main.toml`. You can see this in the `Info` tab.
+You should now see that the Sync status is **Pending**. If not, click **Refresh.** Pending means that there is a difference between the current configuration of all (tagged) Resources in Komodo Core and the configuration found in the repository (under `main.toml`). The difference, at this point, is that there is nothing in `main.toml`. You can see this in the `Info` tab.
 
-* **Execute Sync** will **pull configuration from** your resource file (in the repo `main.toml`) and cause Komodo to modify/create/delete all matching resources to match what is in the file.
+Switch to the new **Pending** tab (next to Info). There are two more tabs available here, **Execute** and **Commit**. Switching between the two will show you the two modes that the Resource sync can be used in.
+
+* **Execute** will **pull configuration from** your resource file (in the repo `main.toml`) and cause Komodo to modify/create/delete all matching resources to match what is in the file.
   * This is what you would use if you had an existing Resource Sync file and were rebuilding your lab
-* **Commit Changes** will **commit current Komodo configuration to** your resource file in the repo (`main.toml`) so that it reflects the current state of Komodo and all (tagged) Resources.
+* **Commit** will **commit current Komodo configuration to** your resource file in the repo (`main.toml`) so that it reflects the current state of Komodo and all (tagged) Resources.
   * This is what you want if you want to **backup** your lab's configuration to repo
 
-Execute **Commit Changes** to backup your configuration. After execution you'll see your current configuration reflected in the `Info` tab.
+Switch to the **Commit** tab and then click **Commit Changes** to backup your configuration. After execution you'll see your current configuration reflected in the `Info` tab.
 
 You should do this after making any resource changes (Adding Stacks, updating Environment, etc..) to make sure your backed up configuration stays up to date. Now you'll have the ability to re-deploy your entire lab with one click!
 
