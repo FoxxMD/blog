@@ -507,6 +507,9 @@ This guide covers a basic setup but Komodo is so much more than just Stacks. Bui
 
 ## Additional Tips and Notes
 
+> Check out my other post for a more in-depth [**FAQ, Tips, and Tricks**](../komodo-tips-tricks)
+{: .prompt-tip}
+
 ### Docker Data Agnostic Location
 
 One of the benefits to Komodo is being able to re-deploy a stack to any Server with basically one click. What isn't so easy, though, is moving (or generally locating) any persistent data that needs to be mounted into those services. 
