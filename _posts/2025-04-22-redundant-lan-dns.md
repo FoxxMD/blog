@@ -6,6 +6,7 @@ author: FoxxMD
 date: 2025-04-22 12:55:00 -0400
 categories: [Tutorial]
 tags: [dns, docker, keepalived, vrrp, technitium, failover, high-availability]
+mermaid: true
 pin: false
 ---
 
@@ -79,14 +80,37 @@ The nameserver can also be configured manually using `/etc/resolv.conf` or by us
 If local-network level DNS cannot resolve the address then it hops to a further DNS server, usually on the [internet at large](https://one.one.one.one/), and this continues up the chain until a server can answer or a [root name server](https://en.wikipedia.org/wiki/Root_name_server) is reached.
 
 
-### Where does LAN-Only DNS Fit In?
+## How It Works
 
-Our goal is set up our own, [recursive DNS server](https://www.cloudflare.com/learning/dns/what-is-recursive-dns/) that our [local network's DHCP server/router](#local-network) tells all devices to use so that:
+### Local DNS
 
-* all devices on our network are automatically configured to use our server (no setup required per device)
-* our DNS server resolves our "LAN-only" address `mysite.mydomain.com` only for our devices inside the network
+Our first goal is set up our own, [recursive DNS server](https://www.cloudflare.com/learning/dns/what-is-recursive-dns/) that our [local network's DHCP server/router](#local-network) tells all devices to use so that all devices on our network are automatically configured to use our server (no setup required per device).
 
-We will get additional benefits from this such as ad-blocking and better privacy, but those are the main objectives.
+To achieve this we will use the [docker version](https://github.com/TechnitiumSoftware/DnsServer/blob/master/docker-compose.yml) of [**Technitium**](https://technitium.com/dns/) as our DNS Server which will give us additional benefits uch as ad-blocking, better privacy, and client-domain logging.
+
+### High Availability
+
+Our second goal is to make our DNS server setup (more) redundant. DNS is a mission-critical component of network and leaving it as a single point of failure for your entire network is more a question of *when* rather than *if* something will go wrong.
+
+![It was DNS](/assets/img/dns/it-was-dns.jpeg)
+_A haiku about DNS - Credit: [nixCraft](https://www.cyberciti.biz/humour/a-haiku-about-dns/)_
+
+The naive way to add redundancy would be to simply setup a second Technitium container and tell our router to use both container's IPs for DNS. This would be flawed though since most systems don't do any type of load balancing for DNS automatically -- if one container was down a random percentage of DNS requests would fail since they'd be sent to the down container.
+
+Instead, we will use [**keepalived**](https://www.keepalived.org/) to create a Virtual IP using [VRRP](https://www.haproxy.com/glossary/what-is-vrrp-virtual-router-redundancy-protocol) that our Technitium containers will sit behind. Each keepalived instance sits next to a Technitium container and monitors the *other* Technitium container. If one container goes down keepalived updates the Virtual IP to route to the other container.
+
+![Keepalive Diagram](/assets/img/dns/keepalive-diagram.jpg)
+_Simplified diagram of how keepalived works_
+
+We will then configure our network-level router to provide **only** the Virtual IP as the dns server to all devices on the network. Now, if one container goes down the other will take over routing requests using the same IP.
+
+### Local Records and Syncing
+
+Our last goal is to configure our DNS to point requests on our network from `mysite.mydomain.com` to our reverse proxy and have these records synced between our two Technitium instances. To do this we will create DNS records on one instance (primary) and then use [Seondary DNS Zones](https://www.cloudflare.com/learning/dns/glossary/primary-secondary-dns/) on our secondary/backup Technitium instance to read these zones from the primary.
+
+## Setup
+
+## Additional Notes
 
 ### What about Pi-hole?
 
@@ -108,11 +132,6 @@ Open the Pi-hole dashboard, then:
   * **Target Domain:** `subdomain.MY_DOMAIN.com`
 
 </details>
-
-## Setup
-
-
-
 ___
 
 ## Footnotes
