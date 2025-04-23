@@ -49,7 +49,7 @@ The missing glue required to make devices on your network use your reverse proxy
 
 <!-- TODO: Add link to more in-depth resolver journey -->
 
-When your device (PC, for example's sake) makes a request to `mysite.mydomain.com` it starts a journey to find the DNS that knows about this address. The journey begins in the most specific place, right on the device, and continues "upstream" making requests to further and further away DNS servers until one of them knows about the address, or there are no more servers to ask. Let's take a look at this journey, step-by-step, starting with the specific location.
+When your device (PC, for example's sake) makes a request to `mysite.mydomain.com` it starts a journey to find the DNS that knows about this address. The journey begins in the most specific place, right on the device, and continues "upstream" making requests to further and further away DNS servers until one of them knows about the address, or there are no more servers to ask. Let's take a look at this journey[^simplified], step-by-step, starting with the specific location.
 
 #### On Device
 
@@ -81,7 +81,7 @@ If local-network level DNS cannot resolve the address then it hops to a further 
 
 ### Where does LAN-Only DNS Fit In?
 
-Our goal is set up our own, [recursive DNS server](https://www.cloudflare.com/learning/dns/what-is-recursive-dns/) that is provided by our [local network's DHCP server/router](#local-network) so that:
+Our goal is set up our own, [recursive DNS server](https://www.cloudflare.com/learning/dns/what-is-recursive-dns/) that our [local network's DHCP server/router](#local-network) tells all devices to use so that:
 
 * all devices on our network are automatically configured to use our server (no setup required per device)
 * our DNS server resolves our "LAN-only" address `mysite.mydomain.com` only for our devices inside the network
@@ -118,3 +118,4 @@ ___
 ## Footnotes
 
 [^resolver-optional]: Often times the software can serve as both a DNS server and the resolver but it is not required.
+[^simplified]: This explanation is greatly simplified and meant to be illustrative, not exhaustive.
