@@ -129,7 +129,7 @@ Our last goal is to configure our DNS to point requests on our network from `mys
 
 <summary>Enabling Packet Forwarding and Nonlocal Binding for Linux</summary>
 
-[*Based on these instructions*]((https://docs.redhat.com/en/documentation/red_hat_enterprise_linux/7/html/load_balancer_administration/s1-initial-setup-forwarding-vsa#s1-initial-setup-forwarding-VSA))
+[*Based on these instructions*](https://docs.redhat.com/en/documentation/red_hat_enterprise_linux/7/html/load_balancer_administration/s1-initial-setup-forwarding-vsa#s1-initial-setup-forwarding-VSA)
 
 ##### Packet Forwarding
 
