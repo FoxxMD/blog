@@ -8,6 +8,8 @@ categories: [Tutorial]
 tags: [dns, docker, keepalived, vrrp, technitium, failover, high-availability]
 mermaid: true
 pin: false
+image:
+  path: /assets/img/dns/techdash.webp
 ---
 
 > *Parts of this post were originally published in an [earlier post](../lan-reverse-proxy-https#step-3-setting-up-lan-only-dns), this a more thorough version.*

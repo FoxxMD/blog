@@ -6,6 +6,4 @@
 #
 # See: https://docs.digitalden.cloud/posts/create-fast-loading-images-with-lqip-webp-in-your-jekyll-chirpy-site/
 
-webp
-
 cwebp "$1" -o "$2"
