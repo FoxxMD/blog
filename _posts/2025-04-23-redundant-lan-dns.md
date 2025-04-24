@@ -3,7 +3,7 @@ title: LAN-Only DNS with failover
 description: >-
   How to use Technitium and keepalived for high-availability homelab DNS
 author: FoxxMD
-date: 2025-04-22 12:55:00 -0400
+date: 2025-04-23 12:55:00 -0400
 categories: [Tutorial]
 tags: [dns, docker, keepalived, vrrp, technitium, failover, high-availability]
 mermaid: true
@@ -63,7 +63,7 @@ You may have seen some reverse proxy guides instruct you to modify `/etc/hosts` 
 ```
 {: file="/etc/hosts"}
 
-This will work *but only for this device.* You *could* modify every `/etc/hosts` on ever computer on your network but that's not a truly feasible option...
+This will work *but only for this device.* You *could* modify every `/etc/hosts` on every computer on your network but that's not a truly feasible option...
 
 #### Local Network
 
@@ -90,7 +90,7 @@ To achieve this we will use the [docker version](https://github.com/TechnitiumSo
 
 ### High Availability
 
-Our second goal is to make our DNS server setup (more) redundant. DNS is a mission-critical component of network and leaving it as a single point of failure for your entire network is more a question of *when* rather than *if* something will go wrong.
+Our second goal is to make our DNS server setup (more) redundant. DNS is a mission-critical component of network and leaving it as a single point of failure for your entire network is more a question of *when*, rather than *if*, something will go wrong.
 
 ![It was DNS](/assets/img/dns/it-was-dns.jpeg)
 _A haiku about DNS - Credit: [nixCraft](https://www.cyberciti.biz/humour/a-haiku-about-dns/)_
@@ -106,20 +106,30 @@ We will then configure our [network-level router](#local-network) to provide **o
 
 ### Local Records and Syncing
 
-Our last goal is to configure our DNS to point requests on our network from `mysite.mydomain.com` to our reverse proxy and have these records synced between our two Technitium instances. To do this we will create DNS records on one instance (primary) and then use [Seondary DNS Zones](https://www.cloudflare.com/learning/dns/glossary/primary-secondary-dns/) on our secondary/backup Technitium instance to read these zones from the primary.
+Our last goal is to configure our DNS to point requests on our network from `mysite.mydomain.com` to our reverse proxy and have these records synced between our two Technitium instances. To do this we will create DNS records on one instance (primary) and then use [Secondary DNS Zones](https://www.cloudflare.com/learning/dns/glossary/primary-secondary-dns/) on our secondary/backup Technitium instance to read these zones from the primary.
 
 ## Setup
+
+> In all of the setup/configurations examples replace these values based on how you [configured your stacks](#create-technitium-servers) as well as with your own IPs of the primary/secondary host.
+> 
+> * `192.168.HOST.IP = IP that technitium instance is running on`
+> * `192.168.VIRTUAL.IP = VIRTUAL_IP set in stacks`
+> * `192.168.PRIMARY.IP = Primary technitium host IP`
+> * `192.168.SECONDARY.IP = Secondary technitium host IP`
+> * `192.168.OTHER.IP = Host IP of the OTHER technitium instance`
+> * `192.168.REVERSE.IP = Host IP of the machine running your reverse proxy`
+{: .prompt-info}
 
 ### Prerequisites
 
 * An OCI engine like [Docker](https://www.docker.com/) or Podman must be installed (and [docker compose](https://docs.docker.com/compose/) to use examples in this guide)
-* Both hosts that will run Technitium/keepalived **must** have packet forwarding and nonlocal address binding enabled.
+* **Both hosts that will run keepalived must have packet forwarding and nonlocal address binding enabled.**
 
 <details markdown="1">
 
 <summary>Enabling Packet Forwarding and Nonlocal Binding for Linux</summary>
 
-[*Based on these directions*]((https://docs.redhat.com/en/documentation/red_hat_enterprise_linux/7/html/load_balancer_administration/s1-initial-setup-forwarding-vsa#s1-initial-setup-forwarding-VSA))
+[*Based on these instructions*]((https://docs.redhat.com/en/documentation/red_hat_enterprise_linux/7/html/load_balancer_administration/s1-initial-setup-forwarding-vsa#s1-initial-setup-forwarding-VSA))
 
 ##### Packet Forwarding
 
@@ -200,9 +210,9 @@ services:
 
 ```ini
 # change to an unused IP in your LAN subnet -- will be the same value on both stacks
-VIRTUAL_IP=192.168.1.250
+VIRTUAL_IP=192.168.VIRTUAL.IP
 # Host IP of the other machine
-CHECK_IP=192.168.1.SECONDARY_IP
+CHECK_IP=192.168.1.SECONDARY.IP
 CHECK_PORT=53
 ```
 {: file=".env"}
@@ -250,9 +260,9 @@ services:
 
 ```ini
 # change to an unused IP in your LAN subnet -- will be the same value on both stacks
-VIRTUAL_IP=192.168.1.250
+VIRTUAL_IP=192.168.VIRTUAL.IP
 # Host IP of the other machine
-CHECK_IP=192.168.1.PRIMARY_IP
+CHECK_IP=192.168.1.PRIMARY.IP
 CHECK_PORT=53
 ```
 {: file=".env"}
@@ -273,16 +283,6 @@ In the `.env` `CHECK_IP` should always be the host IP of the **OTHER** Technitiu
 
 ### Configure Technitium
 
-> In the configuration examples should replace these values based on how you [configured your stacks](#create-technitium-servers) and with your own IPs of the primary/secondary host.
-> 
-> * `192.168.HOST.IP = IP that technitium instance is running on`
-> * `192.168.1.250 = VIRTUAL_IP set in stacks`
-> * `192.168.PRIMARY.IP = Primary technitium host IP`
-> * `192.168.SECONDARY.IP = Secondary technitium host IP`
-> * `192.168.OTHER.IP = Host IP of the OTHER technitium instance`
-> * `192.168.REVERSE.IP = Host IP of the machine running your reverse proxy`
-{: .prompt-info}
-
 On both instances you will need to setup an admin user/password when connecting to the web interface for the first time (`http://HOST_IP:5380`).
 
 #### General
@@ -296,7 +296,7 @@ Navigate to `Settings -> General` and configure these settings **on each instanc
 ```
 0.0.0.0:53
 192.168.HOST.IP:53
-192.168.1.250:53
+192.168.VIRTUAL.IP:53
 [::]:53
 ```
 
