@@ -510,6 +510,31 @@ This guide covers a basic setup but Komodo is so much more than just Stacks. Bui
 > Check out my other post for a more in-depth [**FAQ, Tips, and Tricks**](../komodo-tips-tricks)
 {: .prompt-tip}
 
+### Container Exec/Shell {#container-shell}
+
+Starting with [**v1.17.4**](https://github.com/moghtech/komodo/releases/tag/v1.17.4) Komodo has the ability to open fully-featured, persisted shells on each connected *server.* This is not the same as exec'ing directly into a container but it makes getting to that point much easier. Make sure to read the release notes for what type of shell is available to you, based on the type of perihery agent installed. The TLDR:
+
+* periphery docker container => shell is inside container and can interact with docker daemon but not host
+* periphery systemd (root) => logs in (like SSH) as `root` on host, access to host system and docker daemon
+* periphery systemd (user) => logs in (like SSH) as `user` running periphery systemd service, access to host and docker daemon
+
+To access the terminal navigate to the **Server** details page from any Stack/Resource and open the **Terminals** tab to create a new Terminal.
+
+From this terminal any container can be exec'd in to by using normal docker commands IE
+
+```shell
+docker container exec -it my-container-name /bin/sh
+```
+
+> Install this [fuzzy search => exec into container script](../komodo-tips-tricks/#container-exec-shortcut) as an alias for the logged in user to make exec'ing into a container easier IE
+>
+> ```shell
+> $ dex sonarr
+> # Found media-sonarr-1
+> /app #
+> ```
+{: .prompt-tip}
+
 ### Docker Data Agnostic Location
 
 One of the benefits to Komodo is being able to re-deploy a stack to any Server with basically one click. What isn't so easy, though, is moving (or generally locating) any persistent data that needs to be mounted into those services. 

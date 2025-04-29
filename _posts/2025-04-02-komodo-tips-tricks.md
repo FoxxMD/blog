@@ -170,7 +170,28 @@ Komodo doesn't support "true" realtime log viewing yet but "near realtime" loggi
 
 ### How do I shell/exec/attach to a container? {#shell-container}
 
-Komodo does not yet support container exec but it a [popular requested feature.](https://github.com/moghtech/komodo/issues/75) As an alternative Dozzle now supports [shell/attach to container](https://dozzle.dev/guide/shell) or I have created a [bash script for "fuzzy search and attach to container"](#container-exec-shortcut) that can be used as a shortcut.
+Starting with [**v1.17.4**](https://github.com/moghtech/komodo/releases/tag/v1.17.4) Komodo has the ability to open fully-featured, persisted shells on each connected *server.* This is not the same as exec'ing directly into a container but it makes getting to that point much easier. Make sure to read the release notes for what type of shell is available to you, based on the type of perihery agent installed. The TLDR:
+
+* periphery docker container => shell is inside container and can interact with docker daemon but not host
+* periphery systemd (root) => logs in (like SSH) as `root` on host, access to host system and docker daemon
+* periphery systemd (user) => logs in (like SSH) as `user` running periphery systemd service, access to host and docker daemon
+
+To access the terminal navigate to the **Server** details page from any Stack/Resource and open the **Terminals** tab to create a new Terminal.
+
+From this terminal any container can be exec'd in to by using normal docker commands IE
+
+```shell
+docker container exec -it my-container-name /bin/sh
+```
+
+> Install this [fuzzy search => exec into container script](#container-exec-shortcut) as an alias for the logged in user to make exec'ing into a container easier IE
+>
+> ```shell
+> $ dex sonarr
+> # Found media-sonarr-1
+> /app #
+> ```
+{: .prompt-tip}
 
 ### Environmental Variables/Secrets don't work! {#env-and-variables}
 
