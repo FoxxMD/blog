@@ -512,13 +512,19 @@ This guide covers a basic setup but Komodo is so much more than just Stacks. Bui
 
 ### Container Exec/Shell {#container-shell}
 
-Starting with [**v1.17.4**](https://github.com/moghtech/komodo/releases/tag/v1.17.4) Komodo has the ability to open fully-featured, persisted shells on each connected *server.* This is not the same as exec'ing directly into a container but it makes getting to that point much easier. Make sure to read the release notes for what type of shell is available to you, based on the type of perihery agent installed. The TLDR:
+Starting with [**v1.17.4**](https://github.com/moghtech/komodo/releases/tag/v1.17.4) Komodo has the ability to open fully-featured, persisted shells on each connected *server* as well as exec'ing into containers. Make sure to read the release notes for what type of *server* terminal is available to you, based on the type of perihery agent installed. The TLDR:
 
 * periphery docker container => shell is inside container and can interact with docker daemon but not host
 * periphery systemd (root) => logs in (like SSH) as `root` on host, access to host system and docker daemon
 * periphery systemd (user) => logs in (like SSH) as `user` running periphery systemd service, access to host and docker daemon
 
-To access the terminal navigate to the **Server** details page from any Stack/Resource and open the **Terminals** tab to create a new Terminal.
+Expand the sections below for instructions on how to use both:
+
+<details markdown="1">
+
+<summary>Server Shell</summary>
+
+To access the terminal navigate to the **Server** details page from any Stack/Resource/Server and open the **Terminals** tab to create a new Terminal.
 
 From this terminal any container can be exec'd in to by using normal docker commands IE
 
@@ -534,6 +540,26 @@ docker container exec -it my-container-name /bin/sh
 > /app #
 > ```
 {: .prompt-tip}
+
+This terminal can also be used for general shell access.
+
+</details>
+
+<details markdown="1">
+
+<summary>Container Shell</summary>
+
+Navigate to any **Container** details page from a Stack or `Server -> Docker -> Container` details list. **Note** that the Container details page is NOT the same as the Stack or Service page IE to access a Container from a Stack:
+
+* Navigate to the Stack page (has `/stacks/` in url)
+* Switch to the **Services** tab
+* Click on any Service in the list (now has `/service/` in url)
+* In the Service header click the link with the green cube (![komodo container icon](/assets/img/komodo/komodo-container-icon.png)) icon
+  * url should now have `/container/` in url
+
+From the container details click on the **Terminal** tab to open a terminal and automatically exec into the container. The shell used to exec can be changed from the dropdown on the right side.
+
+</details>
 
 ### Docker Data Agnostic Location
 
