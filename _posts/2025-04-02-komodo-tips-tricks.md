@@ -283,7 +283,7 @@ This is the same as the Same-Machine Stack but requires setting up a local regis
 
 ### Is there a Homepage widget? {#homepage-widget}
 
-There is no officially integrated [Homepage](https://gethomepage.dev/) [widget](https://gethomepage.dev/widgets/) yet but [/u/stonkymcstonkalicous](https://www.reddit.com/user/stonkymcstonkalicous) (GH: [stonkage](https://github.com/stonkage)) on reddit shared a [Custom API widget](https://gethomepage.dev/widgets/services/customapi/) template to [display Total/Running/Unhealthy/Stopped Stacks:](https://www.reddit.com/r/selfhosted/comments/1k33oik/comment/mo72u6u/)
+There is no officially integrated [Homepage](https://gethomepage.dev/) [widget](https://gethomepage.dev/widgets/) yet but [stonkage](https://github.com/stonkage) has created a [Custom API widget](https://gethomepage.dev/widgets/services/customapi/) template to [display Total/Running/Unhealthy/Stopped Stacks:](https://github.com/stonkage/fantastic-broccoli/blob/main/Komodo%2Freadme.md)
 
 First, You'll need an **API Key and Secret** for a Komodo User. (Settings -> Users -> Select User -> Api Keys section)
 
