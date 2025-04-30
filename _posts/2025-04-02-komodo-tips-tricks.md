@@ -329,6 +329,21 @@ First, You'll need an **API Key and Secret** for a Komodo User. (Settings -> Use
 
 </details>
 
+### How do I use the API?
+
+Komodo has official [Rust and Typescript clients](https://komo.do/docs/api) for programmatic usage anywhere outside of Komodo. Inside Komodo, the Typescript Client can be used in an [**Action** Resource](https://komo.do/docs/procedures#actions) (which can then be composed as part of a larger [**Procedure** Resource](https://komo.do/docs/procedures)). When using the client within these mentioned Resource it does not need to be authenticated. Additionally, Actions and Procedures can be run on a schedule configured within Komodo.
+
+See the [available modules](https://docs.rs/komodo_client/latest/komodo_client/api/index.html#modules) for all possible functions and example arguments that can be used with the client libraries.
+
+#### Raw HTTP
+
+The API can also be called as a normal HTTP request. [The API documentation](https://docs.rs/komodo_client/latest/komodo_client/api/index.html) describes everything required to build a request.
+
+> I recommend using `X-Api-Key` and `X-Api-Secret` for authentication. To get these you will need to create an Api Key for a user, located in Komodo UI under `Settings -> Users -> (User Detail) -> Api Keys`
+>
+> I also recommend creating a new **Service** user for API usage. Remove or restrict premissions to **Read** based on how you will use the API.
+{: .prompt-tip}
+
 ## Tips and Tricks
 
 ### Stacks in Monorepo vs. Stack Per Repo {#stacks-monorepo-vs-individual}
