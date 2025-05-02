@@ -388,6 +388,12 @@ services:
 
 And that's it! Compare this to the [wildcard setup required for SWAG](#swag-cert-management-feels-bad)...Traefik feels easier.
 
+> I have published a guide for setting up local DNS. If you are setting up traefik for this first time and only want to use it for internal services you'll need something like this to make your local network actually use your domain:
+> 
+> [**LAN-Only DNS with failover**](../redundant-lan-dns)
+{: .prompt-tip}
+
+
 #### Cloudflare Tunnels {#certs-and-cf-tunnels}
 
 When using [Cloudflare Tunnels](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/), no cert generation/management is required. 

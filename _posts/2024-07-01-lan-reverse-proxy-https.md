@@ -187,6 +187,13 @@ but this exposes details about your private network! Yes, a simple A record with
 So, <a href="https://i.giphy.com/media/v1.Y2lkPTc5MGI3NjExd2V6cWM4em1wZzRnYnNqMzJqNjN0bzNuamZraTR2bW1tejF2bGpuNCZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/h3ViLKWOJiwrAZW5du/giphy.gif" target="_blank">what do now?</a>
 Well, you've read the section header so I haven't really buried the lead but _*queue scary music*_ yes we have to host our own DNS. Every self-hoster wants to avoid it but it's an inevitability if you do not want to expose any details about your private network. Sorry!
 
+> I have published more complete version of the below instructions for Techniitum setup here:
+> 
+> [**LAN-Only DNS with failover**](../redundant-lan-dns)
+>
+> I would recommend using that guide for setting up DNS, then skip to [Auto Generating Subdomains](#step-4-auto-generating-subdomains).
+{: .prompt-tip}
+
 Fortunately, the solution is pretty idiot-proof with the added benefit of [network-side ad-blocking (if you so wish)](#ad-block-with-technitium) for zero cost: [**Technitium DNS**](https://technitium.com/dns/) is a full-fat authoritative and recursive DNS server with a ton of goodies built in. It works out-of-the-box and we use it like normal DNS so there's no "gotchas" to configuring it. It also happens to be dockerized, of course.
 
 ### What about Pi-hole?
