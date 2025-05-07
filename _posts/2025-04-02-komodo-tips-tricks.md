@@ -206,7 +206,7 @@ But what about this scenario?
 >COPY ../common-nginx /var/nginx/html
 >```
 
-So, in order for Komodo to over this use-case it needs to also:
+So, in order for Komodo to cover this use-case it needs to also:
 
 * Check for `build` instead of `image`
   * Parse relative paths in `context`
@@ -357,6 +357,7 @@ If the service has a project git repository with a `Dockerfile` and you know the
 services:
   logdy:
     build:
+      # can use a specific branch like logdy-core.git#myBranch
       context: https://github.com/logdyhq/logdy-core.git
       # only needed if not in root dir and named Dockerfile
 #      dockerfile:  Dockerfile
@@ -403,7 +404,7 @@ This will push the built image to the **local registry on the machine where the 
 
 ##### Any-Machine Stack {#any-machine-stack-image}
 
-This is the same as the Same-Machine Stack but requires setting up a local registry that Komodo can push to and your other machines can pull from. Popular, self-hosted git repo software like [Forgejo](https://forgejo.org/docs/latest/user/packages/container/) and [Gitea](https://docs.gitea.com/usage/packages/container) have registries built in and are easy to use but Docker requires registries to be secure-by-default (no HTTP) and covering reverse proxies or modifying the Docker Daemon are out the scope for this FAQ. You may want to check out my post on [LAN-Only DNS + HTTPS + Reverse Proxy with NGINX](../lan-reverse-proxy-https) for where to get started. (Traefik version coming soon!)
+This is the same as the Same-Machine Stack but requires setting up a local registry that Komodo can push to and your other machines can pull from. Popular, self-hosted git repo software like [Forgejo](https://forgejo.org/docs/latest/user/packages/container/) and [Gitea](https://docs.gitea.com/usage/packages/container) have registries built in and are easy to use but Docker requires registries to be secure-by-default (no HTTP) and covering reverse proxies or modifying the Docker Daemon are out the scope for this FAQ. You may want to check out my post on [LAN-Only DNS](../redundant-lan-dns) and [Traefik](../migrating-to-traefik) for where to get started.
 
 ### Is there a Homepage widget? {#homepage-widget}
 
