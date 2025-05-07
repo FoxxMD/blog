@@ -160,7 +160,131 @@ If it is not supported by apprise or you want to build your own then check out m
 
 In a **Stack** config the **Run Directory** only determines the working directory for Komodo to run `compose up -d` from. 
 
-Komodo does not do anything "smart" when downloading the repo, even if it knows the Run Directory. It's not possible for it to know if you only use files from that directory for the Stack.
+Komodo does not do anything "smart" when cloning the repo for the Stack, even if it knows the Run Directory. It's not possible for it to know if you only use files from that directory for the Stack.
+
+<details markdown="1">
+
+<summary>Why Isn't it Smarter?</summary>
+
+The issue is the feasibility of covering all use cases vs complexity of the "smartness" involved.
+
+The use-case you may have considered is
+
+> Komodo only needs to know about the files inside **Run Directory**
+
+which is fine when everything inside `compose.yaml` refers to published images or volumes/bind mounts with absolute paths. But consider this example:
+
+>`compose.yaml` uses relative bind mounts to folders a few parents up and sideways...
+>
+>```yaml
+>services:
+>  myService:
+>  # ...
+>    volumes:
+>     - ../../common-data/secrets:/secrets:ro
+>```
+
+Ok...so cloning only **Run Directory** won't cover this. So Komodo should implement code that instead parses all `volumes`, both short-hand syntax above and [long-hand syntax](https://docs.docker.com/reference/compose-file/services/#volumes) to look for relative paths, parse those, and then include those when cloning. It's a bit more complicated but possibly still doable.
+
+But what about this scenario?
+
+> `compose.yaml` uses `build` instead of `image` and dockerfile/context is at a relative path
+>
+>```yaml
+>services:
+>  myService:
+>    build:
+>      context: ../../master-folder/
+>      Dockerfile: ../docker/myservice.Dockerfile
+>```
+>
+> AND the `Dockerfile` copies files from another relative directory
+>
+>```dockerfile
+>FROM nginx:alpine
+>
+>COPY ../common-nginx /var/nginx/html
+>```
+
+So, in order for Komodo to over this use-case it needs to also:
+
+* Check for `build` instead of `image`
+  * Parse relative paths in `context`
+  * Parse relative paths in `Dockerfile`
+* Parse the `Dockerfile`
+  * Look for any `COPY` or `ADD` directives, check those for relative paths, and make sure to copy everything from those folders
+
+This is way more complexity. And it's just scratching the surface of what is possible with the compose specification.
+
+Covering all use-cases may be possible but its a lot of work and maintenance. But there is a simpler and completely fool-proof approach to making sure all of these use-cases work: **clone the entire repository.**
+
+This is already "how it works". For any project built from a dockerfile/compose.yaml file that is based on a git repo it must be possible to build it if the repo is cloned, so this is exactly what Komodo does. It may not look smart but its actually the simplest solution to covering all use-cases.
+
+</details>
+
+<details markdown="1">
+
+<summary>Example of Git Repo and Komodo Stack Directory Structure</summary>
+
+Git Repo
+
+```
+.
+├── stacks/
+│   ├── immich/
+│   │   └── compose.yaml
+│   └── frigate/
+│       ├── compose.yaml
+│       └── compose-nvidia.yaml
+└── resources/
+    └── servers.toml
+```
+
+Komodo config defines root directory (for Komodo) at `/opt/komodo` and you create a Stack named **immich** that uses the git repo from above with run directory `stacks/immich`...
+
+<details markdown="1">
+
+<summary>Immich Stack TOML example</summary>
+
+```toml
+[[stack]]
+name = "immich"
+[stack.config]
+server = "myServer"
+git_account = "GitUser"
+repo = "GitUser/komodo"
+run_directory = "stacks/immich"
+environment = """
+"""
+```
+</details>
+
+Directory structure on host running **immich** stack:
+
+```
+.
+└── opt/
+    └── komodo/
+        └── stacks/
+            └── immich/
+                ├── stacks/
+                │   ├── immich/
+                │   │   └── compose.yaml
+                │   └── frigate/
+                │       ├── compose.yaml
+                │       └── compose.nvidia.yaml
+                └── resources/
+                    └── servers.toml
+```
+
+The directory stucture is `komodo root directory` + `komodo stacks` + `stack name` + `git repo`
+
+```
+/opt/komodo      /stacks        /immich      /stacks/immich
+komodo root dir  komodo stacks  stack name   git repo + run directory
+```
+
+</details>
 
 If you are concerned about cloning/pulling the same repo for each Stack see [Stacks in Monorepo vs. Stack Per Repo](#stacks-monorepo-vs-individual) below.
 
