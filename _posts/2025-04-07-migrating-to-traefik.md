@@ -1177,7 +1177,7 @@ The ability to *better* separate services accessible (only) internally and those
 
 ### By Route
 
-All of your entrypoints and services are all served under the same Traefik instance. The determining factor for accessibility is the [Router Rule](https://doc.traefik.io/traefik/routing/routers/#rule) used route your services. With a [DNS challenge generated cert for a domain](#wildcards) and [LAN-only DNS configured](../lan-reverse-proxy-https#step-3-setting-up-lan-only-dns) you can simply match against "lan-only" domain routes without needing to worry about external accessibility since there are no external DNS records to point to your server:
+All of your entrypoints and services are all served under the same Traefik instance. The determining factor for accessibility is the [Router Rule](https://doc.traefik.io/traefik/routing/routers/#rule) used route your services. With a [DNS challenge generated cert for a domain](#wildcards) and [LAN-only DNS configured](../redundant-lan-dns#how-it-works) you can simply match against "lan-only" domain routes without needing to worry about external accessibility since there are no external DNS records to point to your server:
 
 ```yaml
 services:
