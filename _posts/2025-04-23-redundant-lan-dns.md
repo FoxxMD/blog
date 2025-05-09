@@ -449,7 +449,7 @@ When the Technitium container is stopped you should see that the keepalived cont
 
 If all of this was successful then you have confirmed that keepalived is working as expected for failover and can be used for DNS. If you previously stopped a Technitium container go ahead and restart it now.
 
-### Add Records for Reverse Proxy
+### Add Records for Your Domain
 
 On the **Primary** Technitium server navigate to **Zones** and select **Add Zone**:
 
@@ -461,7 +461,7 @@ Navigate to the newly created Zone in the list and select it.
 
 Select **Options** and in the **Zone Transfer** tab make sure **Allow Only Name Servers In Zone** is selected, then Save.
 
-Now, on the Zone details page create **three** records using **Add Record**:
+Now, on the Zone details page create **two** records using **Add Record**:
 
 * **Name:** `@`
 * **Type:** `NS`
@@ -474,13 +474,35 @@ Now, on the Zone details page create **three** records using **Add Record**:
 * **IPv4 Address:** `192.168.REVERSE.IP`
 * **Save**
 
+The primary Technitium server is now configured to point `mydomain.com` to your reverse-proxy host machine. Additionally, we have added the secondary Technitium instance as a nameserver (NS) to allow zone transfer but we [still need to set that up.](#secondary-zone-and-record-syncing)
+
+#### Add Wildcard Subdomain
+
+Assuming the SSL certificates you created for your reverse-proxy are for a wildcard, use these instructions to point all subdomains *not explicitly defined in records for this zone* to point to your reverse proxy.
+
+On the Primary Technitium Server [Zone details page](#add-records-for-your-domain) create a new record using **Add Record**:
+
 * **Name:** `*`
 * **Type:** `A`
 * **TTL:** `3600`
 * **IPv4 Address:** `192.168.REVERSE.IP`
 * **Save**
 
-The primary Technitium server is now configured to point `mydomain.com` to your reverse proxy. Additionally, we have added the secondary Technitium instance as a nameserver (NS) to allow zone transfer but we still need to set that up.
+The primary Technitium server is now configured to point wildcard subdomains (`*.mydomain.com`) to your reverse proxy. 
+
+#### Add Machine IP Alias Subdomains
+
+If you want your DNS to "alias" an IP address for a machine on your network -- IE `machineA.mydomain.com:3000` resolves to `192.168.0.150:3000` -- follow the instructions below for each machine.
+
+On the Primary Technitium Server [Zone details page](#add-records-for-your-domain) create a new record using **Add Record**:
+
+* **Name:** `machineSubdomain`
+* **Type:** `A`
+* **TTL:** `3600`
+* **IPv4 Address:** `192.168.MACHINE.IP`
+* **Save**
+
+The primary Technitium server is now configured to point this subdomain (`machineSubdomain.mydomain.com`) to the IP address you configured.
 
 ### Secondary Zone and Record Syncing
 
