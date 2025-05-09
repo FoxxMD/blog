@@ -126,6 +126,7 @@ Our last goal is to configure our DNS to point requests on our network from `mys
 
 * An OCI engine like [Docker](https://www.docker.com/) or Podman must be installed (and [docker compose](https://docs.docker.com/compose/) to use examples in this guide)
 * **Both hosts that will run keepalived must have packet forwarding and nonlocal address binding enabled.**
+  * If you don't want to set this up you can ignore all the keepalived and secondary record/syncing steps in this guide, using only a single technitium server. [I wouldn't recommend it, though!](#high-availability)
 
 <details markdown="1">
 
