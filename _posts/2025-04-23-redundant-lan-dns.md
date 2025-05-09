@@ -167,6 +167,17 @@ Test if forwarding is enabled with the following command, if it returns `1` it i
 
 </details>
 
+This guide also assumes you already have:
+
+* a reverse proxy configured and
+* have provisioned TLS certificate for a domain you own (or generating self-signed certs for an `.internal` domain)
+  * If using wildcard subdomain record your TLS cert must be provisioned for a wildcard!
+
+If you don't have these you can still use this guide but you won't be able to use the [**Add Records for Your Domain**](#add-records-for-your-domain) section.
+
+> I cover setting up [Traefik as a reverse proxy](../migrating-to-traefik) in another post which also covers [generating wildcard TLS certs.](../migrating-to-traefik/#cert-management)
+{: .prompt-tip}
+
 ### Create Technitium Servers
 
 These stacks should be created on **two physically different machines.**
@@ -478,7 +489,7 @@ The primary Technitium server is now configured to point `mydomain.com` to your 
 
 #### Add Wildcard Subdomain
 
-Assuming the SSL certificates you created for your reverse-proxy are for a wildcard, use these instructions to point all subdomains *not explicitly defined in records for this zone* to point to your reverse proxy.
+[Assuming the TLS certificates you created for your reverse-proxy are for a wildcard](#prerequisites), use these instructions to point all subdomains *not explicitly defined in records for this zone* to point to your reverse proxy.
 
 On the Primary Technitium Server [Zone details page](#add-records-for-your-domain) create a new record using **Add Record**:
 
