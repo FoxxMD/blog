@@ -415,7 +415,7 @@ example.com.		155	IN	A	96.7.128.198
 nslookup example 192.168.PRIMARY.IP
 ```
 
-Should reeturn results like this:
+Should return results like this:
 
 ```
 Server:  desktop-9bhn4mn.localdomain
@@ -475,7 +475,7 @@ Select **Options** and in the **Zone Transfer** tab make sure **Allow Only Name 
 
 Now, on the Zone details page create **two** records using **Add Record**:
 
-* **Name:** `@`
+* **Name:** `ns2`
 * **Type:** `NS`
 * **Name Server**: Name you used on the secondary Technitium instance for the [**DNS Server Domain** setting](#general)
 * **Glue Addresses:** `192.168.SECONDARY.IP`
