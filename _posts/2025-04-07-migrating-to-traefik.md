@@ -1660,8 +1660,9 @@ services:
     container_name: traefik_internal_redis
     image: redis:7-alpine
     networks:
-      - kop_net
       - default
+      - kop_net
+
     # ...
 networks:
   kop_net:
@@ -1674,8 +1675,8 @@ services:
   traefik-kop:
     image: "ghcr.io/jittering/traefik-kop:latest"
     networks:
-      - kop_net
       - default
+      - kop_net
     environment:
       - "REDIS_ADDR=traefik_internal_redis:6379" # automatically resolves to an internal docker network IP like 10.0.2.14
       # ...
