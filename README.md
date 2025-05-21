@@ -6,4 +6,4 @@ See the [chirpy-starter](https://github.com/cotes2020/chirpy-starter) repo for m
 
 ## License
 
-See [LICENSE](/LICENSE)
+See [LICENSE](/LICENSE.md)
