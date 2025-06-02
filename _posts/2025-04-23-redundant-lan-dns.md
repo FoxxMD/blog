@@ -50,9 +50,14 @@ The missing glue required to make devices on your network use your reverse proxy
 
 ### Where is an Address Resolved?
 
-<!-- TODO: Add link to more in-depth resolver journey -->
-
 When your device (PC, for example's sake) makes a request to `mysite.mydomain.com` it starts a journey to find the DNS that knows about this address. The journey begins in the most specific place, right on the device, and continues "upstream" making requests to further and further away DNS servers until one of them knows about the address, or there are no more servers to ask. Let's take a look at this journey[^simplified], step-by-step, starting with the specific location.
+
+> More resources on what DNS is and how it works:
+> * [Cloudflare - What is DNS?](https://www.cloudflare.com/learning/dns/what-is-dns/)
+> * [DNS does not have to be hard](https://www.danielfullstack.com/article/dns-does-not-have-to-be-hard)
+> * [How DNS Works Visually](https://www.youtube.com/watch?v=vrxwXXytEuI&t=1s) - Youtube 10min, more in-depth
+> * [A Cat Explains DNS](https://www.youtube.com/watch?v=4ZtFk2dtqv0) - Youtube 15min, silly and informative of more DNS facets
+{: .prompt-info}
 
 #### On Device
 
