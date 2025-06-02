@@ -572,6 +572,7 @@ services:
     environment:
       - CONTAINERS=1
       - POST=0
+      - INFO=1
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
     ports:
