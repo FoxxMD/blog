@@ -31,6 +31,33 @@ Not from within Komodo the same way Core be can updated, unfortunately. However,
 * from mbecker (Komodo creator) [https://github.com/moghtech/komodo/discussions/220](https://github.com/moghtech/komodo/discussions/220)
 * from bpbradley [https://github.com/bpbradley/ansible-role-komodo](https://github.com/bpbradley/ansible-role-komodo)
 
+### How can I customize systemd Periphery Agents?
+
+The komodo repository describes where [systemd **service units** are placed](https://github.com/moghtech/komodo/tree/main/scripts#periphery-setup-script) when using the [official install script.](https://komo.do/docs/connect-servers#install-the-periphery-agent---systemd)
+
+Properties like the Working Directory and [Komodo Environmental Variables](https://komo.do/docs/connect-servers#configuration), specific to Komodo, can be added to the Service Unit to configure the Periphery Agent without having to add these to your global environment.
+
+To make these modification use a [**drop-in** file](https://unix.stackexchange.com/a/468067) so that your modifications survive any future Periphery install script updates.
+
+Create and edit a drop-in for the service:
+
+```shell
+systemctl edit periphery.service
+```
+(add `--user` if that is how it was installed)
+
+Or manually create it at `/etc/systemd/system/periphery.service.d/override.conf` (path based on install location mentioned in **service units** link above)
+
+Use this file like a regular systemd service definition. Anything here will add to, or override, properties in the existing `periphery.service` unit. EX:
+
+```
+[Service]
+Environment="PERIPHERY_ROOT_DIRECTORY=/home/myUser/komodo"
+Environment="PERIPHERY_DISABLE_TERMINALS=true" 
+```
+
+Restart Periphery after making changes: `systemctl restart periphery.service`
+
 ### How can I automate stack updates?
 
 Komodo has built-in checking for image updates on a Stack. These need to be enabled on each Stack. Find the configuration at
