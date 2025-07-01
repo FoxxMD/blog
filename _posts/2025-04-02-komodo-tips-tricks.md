@@ -56,7 +56,20 @@ Environment="PERIPHERY_ROOT_DIRECTORY=/home/myUser/komodo"
 Environment="PERIPHERY_DISABLE_TERMINALS=true" 
 ```
 
-Restart Periphery after making changes: `systemctl restart periphery.service`
+Reload systemd config and restart Periphery after making any changes:
+
+```shell
+systemctl daemon-reload
+systemctl restart periphery.service
+```
+
+### Systemd Periphery stops after closing SSH?
+
+Likely you installed Periphery using `--user`. Depending on your OS, it may exit all processes *started by that user* when that user logs out IE closes SSH connection. Use [`loginctl enable-linger`](https://docs.oracle.com/en/operating-systems/oracle-linux/8/obe-systemd-linger/) to enable processes started by your user to continue running after the sessions has closed:
+
+```shell
+sudo loginctl enable-linger yourUsername
+```
 
 ### How can I automate stack updates?
 
