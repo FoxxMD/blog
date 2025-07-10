@@ -675,7 +675,7 @@ Use [Dozzle](https://dozzle.dev/) to monitor logging for containers and stacks. 
 
 Komodo uses [Alerter](https://komo.do/docs/resources#alerter) resources to handle notifications for all types of things: Host metrics (cpu, mememory, storage levels), image updates, deploy failures, etc...
 
-It has built-in support for Slack and Discord but if you want more options you need to use the **Custom** endpoint along with an app that can ingest the Alerter payload.
+It has built-in support for Slack, Discord, Ntfy, and Pushover but if you want more options you need to use the **Custom** endpoint along with an app that can ingest the Alerter payload.
 
 I have written several apps to expand notification support to popular self-hosted notification platforms and included some nice QoL features:
 
