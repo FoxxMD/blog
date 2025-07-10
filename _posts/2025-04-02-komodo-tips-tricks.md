@@ -166,7 +166,7 @@ const SERVICES = ['periphery'];
 
 See Nick Cunningham's post: [**How To: Automate version updates for your self-hosted Docker containers with Gitea, Renovate, and Komodo**](https://nickcunningh.am/blog/how-to-automate-version-updates-for-your-self-hosted-docker-containers-with-gitea-renovate-and-komodo)
 
-### How do I send alerts to platforms other than Discord/Slack? {#other-alert-endpoints}
+### How do I send alerts to platforms other than Discord/Slack/Ntfy? {#other-alert-endpoints}
 
 You will need to create an Alerter that uses the **Custom** endpoint with a service that can ingest it and forward it to your service.
 
