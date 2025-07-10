@@ -223,7 +223,7 @@ After each agent is created it's a simple process to add as a [Server](https://k
 
 <details markdown="1">
 
-<summary>A Note on Security and Non-Root Periphery</summary>
+<summary>A Note on Security and Non-Root Periphery Containers</summary>
 
 I prefer to use containers with a non-root user and generally don't like giving unfettered access to `docker.sock`. _This is entirely optional_ but you can chose to run Periphery as non-root and provide access to docker via [docker-socket-proxy](https://github.com/linuxserver/docker-socket-proxy).
 
