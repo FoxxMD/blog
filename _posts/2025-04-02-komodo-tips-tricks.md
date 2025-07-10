@@ -765,7 +765,32 @@ To monitor a **specific** service in the stack and report UP if it is running
 
 * Json Query: `$[service="SERVICE_NAME_FROM_COMPOSE"].container.state`
 * Expected Value: `running`
-  
+
+### Resource Templates
+
+[**New in v1.18.4**](https://github.com/moghtech/komodo/releases/tag/v1.18.4), Komodo now supports Resource **Templates**. These are partial (or full!) Resources that can be used as a "starting point" for any new Resources of the same type you create.
+
+**To create a template** create any Resource as normal (or use an existing one). From the Resource's detail page toggle the **Template** switch in right-hand corner of the Detail header (across from the Resource's name).
+
+![komodo template switch](/assets/img/komodo/komodo-template.png)
+
+#### Example
+
+A common usage for a Template would be to "pre-fill" **Stack** Resource with your default settings for a monorepo:
+
+* Create a new Stack named `Repo Template`
+* Leave **Server** empty and choose **Mode** `Git Repo`
+* Set **Git Provider**, **Account**, and **Repo** with your monorepo details
+* Set the **Run Directory** to your common stack root directory (if applicable)
+* Add `TZ=America/New_York` to the **Environment** section so it's included in any new stacks
+
+Save your changes, then toggle **Template** on for the Stack.
+
+Now, when creating a new Stack, you can choose the `Repo Template` from the **Template** dropdown in the new Stack dialog to get all those fields/config filled automatically.
+
+> Remember, Templates can be created for **any type of Resource**, not just Stacks.
+{: .prompt-tip}
+
 ___
 
 

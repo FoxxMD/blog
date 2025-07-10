@@ -181,7 +181,7 @@ All of my Resources and Stacks would then be Git Repo based.
 
 ##### Git Repo
 
-I went with a monorepo for all my resources. I like this over individual repos per resource so that I can more easily see a "combined" git log of all the changes I've made over my entire lab. The cost for this choice is that every new Resource requires having `Run Directory` defined rather than just `Repo`.[^template]
+I went with a monorepo for all my resources. I like this over individual repos per resource so that I can more easily see a "combined" git log of all the changes I've made over my entire lab. The cost for this choice is that every new Resource requires having `Run Directory` defined rather than just `Repo`, but this boilerplate can be reduced by using a [Resource Template](../komodo-tips-tricks/#resource-templates).
 
 The structure of my repo looks like:
 
@@ -695,4 +695,3 @@ Available platforms:
 ___
 
 [^import]: There has been much discussion in the Komodo discord about ways and future improvements to make "importing" existing stacks or containers easier. Nothing tangible yet but it seems likely there will be gains with this approach in the future.
-[^template]: It's possible to use a ["template pattern"](https://github.com/mbecker20/komodo/issues/191#issuecomment-2481540600) to create a partially filled out Resource with most of these things defined already, though I haven't used this personally.
