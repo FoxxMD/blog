@@ -448,7 +448,13 @@ This is the same as the Same-Machine Stack but requires setting up a local regis
 
 ### Is there a Homepage widget? {#homepage-widget}
 
-There is no officially integrated [Homepage](https://gethomepage.dev/) [widget](https://gethomepage.dev/widgets/) yet but [stonkage](https://github.com/stonkage) has created a [Custom API widget](https://gethomepage.dev/widgets/services/customapi/) template to [display Total/Running/Unhealthy/Stopped Stacks:](https://github.com/stonkage/fantastic-broccoli/blob/main/Komodo%2Freadme.md)
+> Homepage **1.4.0** [introduced](https://github.com/gethomepage/homepage/pull/5407) an [official Komodo Widget](https://gethomepage.dev/widgets/services/komodo/)!
+> You will still need an API Key and Secret (detailed below) but **the custom widget below is no longer needed**.
+> 
+> The custom widget, however, is still a useful template if you want to display stats other than what the official widget offers.
+{: .prompt-tip}
+
+~~There is no officially integrated~~ [Homepage](https://gethomepage.dev/) [widget](https://gethomepage.dev/widgets/) yet but [stonkage](https://github.com/stonkage) has created a [Custom API widget](https://gethomepage.dev/widgets/services/customapi/) template to [display Total/Running/Unhealthy/Stopped Stacks:](https://github.com/stonkage/fantastic-broccoli/blob/main/Komodo%2Freadme.md)
 
 First, You'll need an **API Key and Secret** for a Komodo User. (Settings -> Users -> Select User -> Api Keys section)
 
