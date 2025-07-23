@@ -2,9 +2,20 @@
   "version": "2.0.0",
   "tasks": [
     {
-      "label": "Run Jekyll Server",
+      "label": "Run Jekyll Server (Prod)",
       "type": "shell",
       "command": "./tools/run.sh",
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "problemMatcher": [],
+      "detail": "Runs the Jekyll server with live reload."
+    },
+    {
+      "label": "Run Jekyll Server",
+      "type": "shell",
+      "command": "bundle exec jekyll s -l --drafts -H 127.0.0.1",
       "group": {
         "kind": "build",
         "isDefault": true
