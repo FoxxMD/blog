@@ -64,6 +64,12 @@ All nodes need to be able to reach NB host, no errors
 
 ## Create Overlay
 
+Need to set mtu here with 
+
+```
+--opt com.docker.network.driver.mtu=1280
+```
+
 ## Test Overlay
 
 # Bonus: Connectivity w/o VPN
