@@ -3,7 +3,7 @@ title: Internal Rybbit dashboard with external tracking via Traefik
 description: >-
   Setup a Rybbit instance to track your external websites while keeping the dashboard private
 author: FoxxMD
-categories: []
+categories: [Tutorial]
 tags: [docker, traefik, rybbit, analytics]
 pin: false
 date: 2025-08-06 15:50:00 -0400
