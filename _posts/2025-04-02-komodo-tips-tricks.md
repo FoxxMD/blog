@@ -444,7 +444,103 @@ This will push the built image to the **local registry on the machine where the 
 
 ##### Any-Machine Stack {#any-machine-stack-image}
 
-This is the same as the Same-Machine Stack but requires setting up a local registry that Komodo can push to and your other machines can pull from. Popular, self-hosted git repo software like [Forgejo](https://forgejo.org/docs/latest/user/packages/container/) and [Gitea](https://docs.gitea.com/usage/packages/container) have registries built in and are easy to use but Docker requires registries to be secure-by-default (no HTTP) and covering reverse proxies or modifying the Docker Daemon are out the scope for this FAQ. You may want to check out my post on [LAN-Only DNS](../redundant-lan-dns) and [Traefik](../migrating-to-traefik) for where to get started.
+This is the same as the Same-Machine Stack but requires extra step(s) to get the image to another machine.
+
+In all the below options the first step is to build the image using the [Same-Machine Stack](#same-machine-stack-image) steps from above.
+
+###### **Docker `save` over SSH** {#save-over-ssh}
+
+This is the most straightforward but least repeatable option. Assuming you can connect to the remote machine over SSH, run this command from the machine where the image was built:
+
+```shell
+docker save myImageName:latest | ssh <remote server> docker load
+```
+This command can be used in a [post-build step](#post-build-step) to automate pushing to the remote machine.
+
+###### **Unregistry** {#unregistry}
+
+Install and use [**unregistry**](https://github.com/psviderski/unregistry) to push images directly from the builder machine to the remote machine.
+
+This is essentially the same as [Docker `save` over SSH](#save-over-ssh) but is more efficient in that it only pushes missing layers for the image. Make sure to [read the requirements](https://github.com/psviderski/unregistry?tab=readme-ov-file#requirements) for unregistry!
+
+```shell
+docker pussh myapp:latest user@server
+```
+This command can be used in a [post-build step](#post-build-step) to automate pushing to the remote machine.
+
+###### **Self-Hosted Registry** {#self-hosted-registry}
+
+Create a docker container/stack that hosts a registry that any machine on your network can pull from.
+
+This approach requires the most work but makes subsequent image publishing as easy as pushing to official registries like dockerhub, github packages, etc. using the **Image Registry** setting in a Komodo Build config.
+
+There are several popular registry images to choose from:
+
+* [Distribution](https://distribution.github.io/distribution/about/deploying/)
+  * Simplest to run, requires no setup
+  * No authentication out of the box, requires implementing your own
+* [Forgejo](https://forgejo.org/docs/latest/user/packages/container/) or [Gitea](https://docs.gitea.com/usage/packages/container)
+  * Full git platforms that also provide registries
+  * Requires setup and creating a user
+  * Authentication out of the box, works with Komodo Git/Registry providers
+
+**By default Docker will only pull from registries using a secure connection (`https`).** You will need to host your registry behind a real domain with some kind of internal access like a reverse proxy. You may want to check out my post on [LAN-Only DNS](../redundant-lan-dns) and [Traefik](../migrating-to-traefik) as a jumping off point if you don't already have this setup.
+
+<details markdown="1">
+
+<summary>Using a Registry with an insecure connection</summary>
+
+It is not recommended, but this can be done by [modifying the docker daemon on every machine](https://distribution.github.io/distribution/about/insecure/) that will pull the image.
+
+Modify or create `daemon.json` and add your insecure endpoint:
+
+```json
+{
+  "insecure-registries" : ["192.168.0.101:5000"]
+}
+```
+
+Then, restart docker for the change to take effect.
+
+</details>
+
+### How to create post-build steps for a Build? {#post-build-step}
+
+There is no built-in "post-build" functionality for a [Build](https://komo.do/docs/build-images). But this functionality can be created using an [Action](https://komo.do/docs/procedures#actions) to run your post-build commands, combined with a [Procedure](https://komo.do/docs/procedures#procedures) that runs the Build.
+
+Create an **Action** that
+
+* Creates a terminal on the Server the Builder runs on
+* Executes your post-build script or commands in that terminal
+
+```ts
+  await komodo.write("CreateTerminal", {
+    server: "MyBuilderServer",
+    name: "MyTerminalName",
+    command: "bash",
+    recreate: Types.TerminalRecreateMode.DifferentCommand,
+  });
+
+  await komodo.execute_terminal(
+    {
+      server: "MyBuilderServer",
+      terminal: "MyTerminalName",
+      // can run any arbitrary shell commands...
+      // Run a script saved on the server or run commands directly
+      command:
+        "cd /my/cool/path/post-build.sh && docker image tag myDigestId myImage:anotherTag",
+    },
+    {
+      onLine: console.log,
+      onFinish: (code) => console.log("Finished:", code),
+    },
+  );
+```
+
+Then, create a **Procedure** with two Stages so your steps run sequentially. The first stage is your Build, the second your Post-Build Action
+
+![post-build procedure](/assets/img/komodo/post-build-procedure.jpg){: height="325" }
+
 
 ### Is there a Homepage widget? {#homepage-widget}
 
