@@ -124,7 +124,7 @@ To think like a lizard 🦎 you're going to have to change the way you think abo
 
 Komodo wants you to _declaratively_ define what is it you want to run, rather than _imperatively_ creating it for you the way Portainer->Containers does.
 
-This is not limited to standalone containers, either. If you have existing stacks running on a machine Komodo will not automatically surface them in the UI the way dockge does when pointed to a folder full of compose files. While Komodo can manage existing stacks/compose files you will still need to "create" the stack in Komodo and tell it where the files are before it can take over management.[^import]
+This is not limited to standalone containers, either. If you have existing stacks running on a machine Komodo will not automatically surface them in the UI the way dockge does when pointed to a folder full of compose files. While Komodo can manage existing stacks/compose files you will still need to "create" the stack in Komodo and tell it where the files are before it can take over management. This can be done [manually per stack](https://komo.do/docs/docker-compose#importing-existing-compose-projects) or semi-automated using my [komodo-import tool](https://github.com/FoxxMD/komodo-import).
 
 This requirement of explicitly specify all your infrastructure applies to all other Resources in Komodo. At the moment this is a fact of life.
 
@@ -351,6 +351,9 @@ If you have existing projects that use `compose.yaml`/docker compose you have se
 
 * Outside of komodo [structure your git repo](#git-repo) and commit your existing projects before creating Stacks. Then, when the Stack is created with the correct Run Directory it'll auto-populate everything for you
 * Create the Stack and then manually copy-paste your existing `compose.yaml` contents into Stack `Info` and **Save** to commit to the repo using Komodo
+
+> If you are creating Stacks from existing compose projects that are "plain old folders" on your machine (like with dockge) you can use my [komodo-import tool](https://github.com/FoxxMD/komodo-import) generate the configuration for these Stacks semi-automatically.
+{: .prompt-tip}
 
 Before starting and re-deploying the newely created Stack read the [environmental variable section below.](#environmental-variables-and-secrets)
 
@@ -694,4 +697,4 @@ Available platforms:
 
 ___
 
-[^import]: There has been much discussion in the Komodo discord about ways and future improvements to make "importing" existing stacks or containers easier. Nothing tangible yet but it seems likely there will be gains with this approach in the future.
+

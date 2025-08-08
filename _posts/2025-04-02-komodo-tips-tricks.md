@@ -166,6 +166,14 @@ const SERVICES = ['periphery'];
 
 See Nick Cunningham's post: [**How To: Automate version updates for your self-hosted Docker containers with Gitea, Renovate, and Komodo**](https://nickcunningh.am/blog/how-to-automate-version-updates-for-your-self-hosted-docker-containers-with-gitea-renovate-and-komodo)
 
+### How do I bulk import existing compose projects?
+
+An existing compose project can be manually imported as a **Files on Server** mode **Stack**. [Make sure the Stack name is the same as the compose project](https://komo.do/docs/docker-compose#importing-existing-compose-projects) so Komodo picks up its status automatically.
+
+Komodo does not have a built-in way to import compose projects automatically. However, **I have created a small tool that can generate [Sync Resource](https://komo.do/docs/sync-resources) TOML from many existing compose projects.** That TOML can be copy-pasted into Komodo to create Stacks from your existing compose-folders.
+
+More information and instructions to use this tool are at [**https://github.com/FoxxMD/komodo-import**](https://github.com/FoxxMD/komodo-import)
+
 ### How do I send alerts to platforms other than Discord/Slack/Ntfy? {#other-alert-endpoints}
 
 You will need to create an Alerter that uses the **Custom** endpoint with a service that can ingest it and forward it to your service.
