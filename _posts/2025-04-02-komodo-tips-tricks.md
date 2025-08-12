@@ -170,9 +170,9 @@ See Nick Cunningham's post: [**How To: Automate version updates for your self-ho
 
 An existing compose project can be manually imported as a **Files on Server** mode **Stack**. [Make sure the Stack name is the same as the compose project](https://komo.do/docs/docker-compose#importing-existing-compose-projects) so Komodo picks up its status automatically.
 
-Komodo does not have a built-in way to import compose projects automatically. However, **I have created a small tool that can generate [Sync Resource](https://komo.do/docs/sync-resources) TOML from many existing compose projects.** That TOML can be copy-pasted into Komodo to create Stacks from your existing compose-folders.
+Komodo does not have a built-in way to import compose projects automatically. However, **I have created a small tool that can generate [Sync Resource](https://komo.do/docs/sync-resources) TOML from many existing compose projects.** That TOML can be copy-pasted into Komodo, or directly created with the API, to create Stacks from your existing compose-folders.
 
-More information and instructions to use this tool are at [**https://github.com/FoxxMD/komodo-import**](https://github.com/FoxxMD/komodo-import)
+More information and instructions to use this tool are at [**https://foxxmd.github.io/komodo-import**](https://foxxmd.github.io/komodo-import)
 
 ### How do I send alerts to platforms other than Discord/Slack/Ntfy? {#other-alert-endpoints}
 
