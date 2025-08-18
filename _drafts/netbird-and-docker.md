@@ -41,6 +41,20 @@ Use one of
 
 ### DHCP Option 121
 
+If you do this make sure there is a way to remove the static route on the device making the next hop or else any traffic to/from netbird will loop indefinitely trying to hop to itself.
+
+Can use [DHCPCD or DHCLIENT hooks](https://netbeez.net/blog/linux-dhcp-hooks-network-engineers/) to setup a script to delete the route when the associated interface comes up:
+
+```shell
+#!/bin/bash
+
+if [[ "$interface" == "ensX" ]]
+then
+    echo -e "\nRemoving extra routes"
+    ip route del 100.110.0.0/16 via 192.168.0.X dev ensX
+fi
+```
+
 ## Test Routing
 
 # Swarm
