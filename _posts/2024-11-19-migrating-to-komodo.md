@@ -9,27 +9,19 @@ tags: [docker, compose, dockge, portainer, komodo, git]
 pin: false
 ---
 
-## Submitted for your approval
+## Does this describe you?
 
 ![Rod Sterling](https://i.giphy.com/media/v1.Y2lkPTc5MGI3NjExYTBqbm9hano0cm5ndmhhZ2NrcDRjOXQ3eDBkaWU4OWU5MTY3czBrciZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/fsXvkV3xXVtTO/giphy.gif)
 
-Consider this scenario and tell me if I'm personally attacking you:
+You are new to self hosting or are casually running services for some time. You started with plain docker containers from command line, or maybe a few `compose.yaml` compose stacks sitting in random folders. Now you have 5, 10, 15+ services running and realize it would be better to have a GUI for managing these, so you use Portainer or Dockge.
 
-You are new to self hosting or maybe have been in the game for awhile. Your journey into this niche started with running plain docker containers from command line. Or perhaps you have some compose files lying around. After collecting a few services here and there you realized it would be better to have a GUI for managing these so you did your homework and got Portainer or Dockge running. 
+Time passes and you have even more services. You've added a few more raspberry pi's to your homelab and now are connecting Portainer to multiple nodes or SSH'ing in to pull image updates, start containers, edit compose files, etc...
 
-Time passes and you now have a handful or even a sizable collection of compose files and ad-hoc containers running. Perhaps you added a few Raspberry Pi's to your humble lab and now you are connecting Portainer to multiple nodes or SSH'ing in to pull image updates, start containers, edit compose files, etc...
+At some point you start to get the feeling there's a better way to manage all of these services across all these machines. You're also worried because you don't have a good way to backup your service _configurations_.
 
-At some point you start to get the feeling there's a better way to manage all of these services. 
+Maybe you copy all your compose files to an external drives sometimes. Or you have some of them committed to a git repository, but you need to manually do this and it's a pain to do it every time you make a change...Also how do you organize them? Folders by machine? By service?
 
-Maybe you even had a bad experience with a machine crashing or corrupted/formatted drive and lost some of those services and their configurations. Maybe it wasn't a bad experience but you still needed to wipe the machine and copy over all of your manually backed up compose files. Or maybe you're just looking at the 20+ services with 100s of lines of compose config or long-running ad-hoc containers and feeling uneasy because...did you backup everything? What about that change you made last week to that one file? What if you upgrade hardware and have to do all of this setup all over again, won't that take forever? Or why is it so much manual work to move one compose stack from one machine to another. Is it really always as laborious as needing to copy all these files and run all the commands again?
-
-Ok...so you start doing your homework again but it's not as clear cut this time. There's Kubernetes but man this looks so enterprise-y. Rancher? You need to setup storage devices, balancers, networking? All you want is a better way to manage all your machines and backup your stacks/configuration. This seems way too much work for that!
-
-So maybe you start a git repo, clone it on each machine, and start manually committing changes if/when you remember to do so. 
-
-Or maybe you don't do anything at all. It's a hobby after all and it's working as-is. The jump from plain-ol files with Dockge to enterprise-level setup seems overwhelming and like too much effort.
-
-And so you're back where you started. Even with the git stuff you're still doing a bunch of manual work to keep track of changes and adminster your lab. 
+So you start researching but it's not as clear cut. There's Kubernetes, but it takes so much setup and needs distributed filesystems? Rancher? You need to setup storage devices, balancers, networking? All you want is a better way to manage all your machines and backup your stacks/configuration. This seems way too much work for that!
 
 Why isn't there anything in middle? A compromise between plain-ol compose files/ad-hoc containers and crazy enterprise setups?
 
@@ -47,7 +39,7 @@ Resources, in this context, cover many aspects of your homelab:
 * Repositories (where your configurations live)
 * [...and so much more](https://komo.do/docs/resources)
 
-It provides the same kind of functionality you are use to with Portainer and Dockge. [From the docs:](https://komo.do/docs/intro)
+It provides the same kind of functionality you are used to with Portainer and Dockge. [From the docs:](https://komo.do/docs/intro)
 
 > With Komodo you can:
 >
@@ -63,7 +55,7 @@ It provides the same kind of functionality you are use to with Portainer and Doc
 
 ### Resources
 
-The "killer feature" of Komodo, though, is that all of the above can be described [as its own **Resource** that Komodo uses to define how it behaves](https://komo.do/docs/sync-resources), the proverbial **Infrastructure As Code**. If you're familiar with the [Terraform](https://www.terraform.io/) or [AWS CloudFormation](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/Welcome.html) then this should be familiar territory for you, but for the rest of us consider this simple example:
+The "killer feature" of Komodo, though, is that all of the above can be described [as its own **Resource** that Komodo uses to define how it behaves](https://komo.do/docs/resources/sync-resources), the proverbial **Infrastructure As Code**. If you're familiar with the [Terraform](https://www.terraform.io/) or [AWS CloudFormation](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/Welcome.html) then this should be familiar territory for you, but for the rest of us consider this simple example:
 
 Your compose files describe how a stack should be created with individual containers, networking, envs...but how do you describe which compose files run on which servers? How do you describe which servers should be used and how to connect to them? 
 
@@ -80,7 +72,7 @@ region = "AshburnDc1"
 enabled = true
 ```
 
-And so is each [Stack](https://komo.do/docs/sync-resources#stack) that should run on that Server:
+And so is each docker compose [Stack](https://komo.do/docs/resources#stack) that should run on that Server:
 
 ```toml
 [[stack]]
@@ -97,7 +89,7 @@ repo = "mbecker20/media-arrs"
 
 Both of the above configurations:
 
-* can be generated after configuring everything in the web GUI OR
+* can be generated after configuring everything in the web GU, **and/or**
 * can be used by Komodo to create the resource (server, stacks) if they don't already exist!
 
 ### This is it, Chief
@@ -106,9 +98,9 @@ Sounds cool! Right? But here's the _real_ kicker. Komodo deeply integrates with 
 
 Those compose stacks? Can be pulled from a public/private repository. Komodo can pull new changes and auto deploy anything that has changed. It can also _directly write to the repo_ for the files that change (think dockge compose editor but commit to repo instead of a regular file.) 
 
-And the "infra as code" resources? Yep. That too can be synced to a git repo. It's bi-directional -- pull _from_ the repo to invoke changes to Komodo or commit _to_ the repo when you make changes in Komodo.
+And the "infra as code" resources? That can be synced to a git repo as well. It's bi-directional: pull _from_ the repo to invoke changes to Komodo or commit _to_ the repo when you make changes in Komodo.
 
-Suddenly, all of your stacks can be seamlessly backed up **as well as** the exact topology of all your docker deployments (on which servers). This, alongside the convenience of a central management interface and easy editing of compose files, env interpolation, secret management, etc...
+With Komodo, all of your stacks can be backed up as you define/modify them **as well as** the exact topology of all your docker deployments (on which servers). This, alongside the convenience of a central management interface and easy editing of compose files, env interpolation, secret management, etc...
 
 This is, Chief. This is the middle ground you've been looking for.
 
@@ -116,23 +108,23 @@ This is, Chief. This is the middle ground you've been looking for.
 
 ### So What's the Catch?
 
-So here's the rub. To fully take advantage of Komodo and all the shinyness described above you're going to have to face two gauntlets.
+To fully take advantage of Komodo and all the benefits described above you're going to have to face two gauntlets.
 
 #### Declarative Infrastructure
 
-To think like a lizard 🦎 you're going to have to change the way you think about creating and managing docker containers/stacks. This is going to be most difficult if you aren't heavily using compose stacks already.
+To think like a lizard 🦎 you're going to have to change the way you think about creating and managing docker containers/stacks. This is going to be most difficult if you are not currently using compose stacks for most of your services.
 
-Komodo wants you to _declaratively_ define what is it you want to run, rather than _imperatively_ creating it for you the way Portainer->Containers does.
+<ins>Komodo wants you to _declaratively_ define what is it you want to run, rather than _imperatively_ creating it for you the way Portainer->Containers does.</ins>
 
-This is not limited to standalone containers, either. If you have existing stacks running on a machine Komodo will not automatically surface them in the UI the way dockge does when pointed to a folder full of compose files. While Komodo can manage existing stacks/compose files you will still need to "create" the stack in Komodo and tell it where the files are before it can take over management. This can be done [manually per stack](https://komo.do/docs/docker-compose#importing-existing-compose-projects) or automated using my [komodo-import tool](https://foxxmd.github.io/komodo-import) with the [interactive Quickstart docs.](https://foxxmd.github.io/komodo-import/docs/quickstart)
+This is not limited to standalone containers, either. If you have existing stacks running on a machine Komodo will not automatically surface them in the UI the way dockge does when pointed to a folder full of compose files. While Komodo can manage existing stacks/compose files you will still need to "declare" the stack in Komodo and tell it where the files are before it can take over management. This can be done [manually per stack](https://komo.do/docs/resources/docker-compose) or automated using my [komodo-import tool](https://foxxmd.github.io/komodo-import) with the [interactive Quickstart docs.](https://foxxmd.github.io/komodo-import/docs/quickstart)
 
 This requirement of explicitly specify all your infrastructure applies to all other Resources in Komodo. At the moment this is a fact of life.
 
-However this should not deter you! Getting all of your lab into a well-defined configuration is something you've been striving for, remember? Do a little bit at a time so it isn't overwhelming. Komodo can co-exist with whatever you've been using up till now, there's no all-or-nothing rush to switch over.
+However this should not deter you! Getting all of your lab into a well-defined configuration is something you've been striving for, remember? Migration to Komodo can be done incrementally so it isn't overwhelming. Komodo can co-exist with whatever you've been using up till now, there's no all-or-nothing rush to switch over.
 
 #### Unopinionated Resource Storage
 
-The second hurdle is that there is no Best Way™️ to store and backup all of your Resources. Komodo offers three ways to get/set resources:
+The second hurdle is that there is no Best Way™️ to store and backup all of your Resources. [Komodo offers three ways](https://komo.do/docs/resources/docker-compose#define-the-compose-files) to get/set resources:
 
 * UI Defined -- Komodo will write to a subfolder in its own (controlled) directories
 * Files on Server -- existing files/folders on a host, outside of Komodo's own directories, you point to
@@ -215,9 +207,9 @@ I chose to setup Komodo [Core](https://komo.do/docs/setup/mongo) using MongoDB. 
 
 #### Create Komodo Periphery Agents
 
-~~I created [Periphery agents on all other servers as containers](https://komo.do/docs/connect-servers#install-the-periphery-agent---container). The agent can be installed natively using systemd but I like keeping everything contained to docker so there is less to think about.~~
+~~I created [Periphery agents on all other servers as containers](https://komo.do/docs/setup/connect-servers#install-the-periphery-agent---container). The agent can be installed natively using systemd but I like keeping everything contained to docker so there is less to think about.~~
 
-UPDATE: After using Komodo for 3+ months I have changed to using [systemd agents](https://komo.do/docs/connect-servers#install-the-periphery-agent---systemd). I have zero security concerns about using Periphery with user-level access to the Docker daemon and using the non-docker agent makes Docker interactions simpler, IMO.
+UPDATE: After using Komodo for 3+ months I have changed to using [systemd agents](https://komo.do/docs/setup/connect-servers#install-the-periphery-agent---systemd). I have zero security concerns about using Periphery with user-level access to the Docker daemon and using the non-docker agent makes Docker interactions simpler, IMO.
 
 After each agent is created it's a simple process to add as a [Server](https://komo.do/docs/resources#server) resource in the komodo core interface.
 
@@ -312,6 +304,31 @@ In Komodo, navigate to `Settings -> Providers -> Git Accounts` and then create a
 * Username `your github username`
 * Token `token created for repo`
 
+#### Setup Linked Repo (Optional)
+
+To reduce boilerplate and add convenience we will use a Linked Repo for all of our Stacks. A Linked Repo is just a normal Komodo Repo that Komodo can re-use for Git Repo Stacks. It's not *required* to use a Linked Repo but it definitely makes things easier.
+
+<details markdown="1">
+
+<summary>What is a Linked Repo and Why Use It?</summary>
+
+[Introduced in Komodo v1.18.2](https://github.com/moghtech/komodo/releases/tag/v1.18.2), a [Repo Resource](https://komo.do/docs/resources#repo) defined in Komodo can be used as a **Linked Repo** for Stacks. This has some advantages compared to defining the respository for every Stack, individually:
+
+* Less boilerplate for Stack - Linked repo from Stack config dropdown means you don't need to fill in git provider, repo namespace/name, etc... every time for a new Stack
+* Bulk repo config update - Changing the Repo resource config updates that config for every Stack that depends on it, making changing repo name etc.. easier for many stacks
+* Dependent files and shared ENVs - Repo can have an .env written to it, or use On Pull/Clone to create addtional files, which can then be utilized by each Stack using the Linked Repo
+
+Generally, you should use a Linked Repo if you have a setup like mine, a _monorepo_ where many Stacks pulls from the same repository.
+
+If only one Stack is using the repo it's easier to define it as a "normal" repository into the Stack's config.
+
+</details>
+
+Navigate to **Repos** in the Komodo UI and create a new one from the git repository you want to use. To use it in a Stack select it from the **Select Repo** dropdown in the Stack's config.
+
+> The Komodo Repo you create *does not* need to be deployed to be used as a Linked Repo. Komodo Stacks can use it as a Linked Repo regardless of it is deployed or what Sever it is deployed to.
+{: .prompt-tip }
+
 ### Creating Stacks
 
 Now that we have Komodo Core and Periphery agents setup on all our servers, and git configured, we can start creating [Stack](https://komo.do/docs/resources#stack) Resources. These are the bread & butter of Komodo and what you are probably here for. A Stack is docker `compose.yaml` file(s) and the associated configuration needed to deploy them:
@@ -327,12 +344,16 @@ To create a new Stack navigate to `Stacks` in Komodo Core and click **New Stack*
 
 We now need to configure the new Stack so it points to our Git repo so it can find (or create) compose files for our project. In the newely created Stack under `Config`:
 
+* Server
+   * Select the Server connected to the [periphery agent](#create-komodo-periphery-agents) created earlier
 * Source
-  * Git Provider: `github.com`
-  * Account: username from dropdown you created in the [Git Provider](#setup-git-provider) step
-  * Repo: For github this is `username/repo-name` like you'd see in the URL when viewing your repo on github.com
-  * Run Directory: This will be dependent on how you structured your [Git Repo](#git-repo) from earlier
-    * EX: `server1/immich`
+  * If you created a [Linked Repo](#setup-linked-repo-optional) select it from the `Select Repo` dropdown or
+  * If you did not create a Linked Repo, or don't need one for this Stack then
+    * Git Provider: `github.com`
+    * Account: username from dropdown you created in the [Git Provider](#setup-git-provider) step
+    * Repo: For github this is `username/repo-name` like you'd see in the URL when viewing your repo on github.com
+    * Run Directory: This will be dependent on how you structured your [Git Repo](#git-repo) from earlier
+      * EX: `server1/immich`
 
 After configuring these settings **Save** your Stack. 
 
@@ -359,7 +380,7 @@ Before starting and re-deploying the newely created Stack read the [environmenta
 
 ##### Converting Standalone Containers
 
-If you have containers that were created with `docker run...` or something like Portainer you will now need to convert them to compose projects. To turn each of these into a stack I used [docker-autocompose](https://github.com/Red5d/docker-autocompose) as a docker container to generate a compose file to output. Run this on the machine the container you want to convert is running on:
+If you have containers that were created with `docker run...` or Portainer Containers you will now need to convert them to compose projects. To turn each of these into a stack I used [docker-autocompose](https://github.com/Red5d/docker-autocompose) as a docker container to generate a compose file to output. Run this on the machine the container you want to convert is running on:
 
 ```shell
 docker run --rm -v /var/run/docker.sock:/var/run/docker.sock ghcr.io/red5d/docker-autocompose container_name
@@ -428,7 +449,7 @@ VARFUN=Bar
 > A more thorough explanation of how Docker Compose handles variables and ENVs, along with runnable example compose files, [can be found here.](../compose-envs-explained) If you do not have a good grasp of `.env` `--env-file` `environment:` and `env_file:` usage/hierarchy in Docker Compose I would **highly recommend** reading it as it will save you a headache later.
 {: .prompt-tip }
 
-Komodo stores the contents of `Environment` in a `.env` located next to the created compose files for the Stack. Additionally, if you use [Resource Sync](#resource-sync) it will store the contents alongside the rest of the Stack configuration so it is best to **not** put sensitive data in Environment and instead use [Secrets interpolation to pass that data through ENV.](https://komo.do/docs/variables)
+Komodo stores the contents of `Environment` in a `.env` located next to the created compose files for the Stack. Additionally, if you use [Resource Sync](#resource-sync) it will store the contents alongside the rest of the Stack configuration so it is best to **not** put sensitive data in Environment and instead use [Secrets interpolation to pass that data through ENV.](https://komo.do/docs/resources/variables)
 
 ##### Using Secrets
 
@@ -464,7 +485,7 @@ Now...to take full advantage of Komodo we want to commit the _topology_ of our d
 
 ### Resource Sync
 
-This is the true "killer feature" [mentioned in the intro.](#this-is-it-chief) With [Resource Sync](https://komo.do/docs/sync-resources) Komodo will generate a plain text representation of all our Stacks and Servers which can be then be synced to a git repo (or pulled to make Komodo create/modify Resources).
+This is the true "killer feature" [mentioned in the intro.](#this-is-it-chief) With [Resource Sync](https://komo.do/docs/resources/sync-resources) Komodo will generate a plain text representation of all our Stacks and Servers which can be then be synced to a git repo (or pulled to make Komodo create/modify Resources).
 
 #### Limiting Scope
 
@@ -631,9 +652,9 @@ and then restart the periphery container.
 
 ### Converting Resource Storage Type
 
-While not a first-class feature, it is possible to convert Resources between UI Defined, Files on Server, and Git Repo based storage without having to manually recreate them in the UI. There should be better support for this in [version 1.17](https://discord.com/channels/1272479750065094760/1272479750065094763/1340120174224740425) but it's still not "official" by any metric.
+While not a first-class feature, it is possible to convert Resources between UI Defined, Files on Server, and Git Repo based storage without having to manually recreate them in the UI.
 
-First, make sure the Resources you want to convert are backed by a [Resource Sync](https://komo.do/docs/sync-resources#resource-sync). You should be able to see your Resource in the created TOML of the Sync like so (example of a files-on-server Resource):
+First, make sure the Resources you want to convert are backed by a [Resource Sync](https://komo.do/docs/resources/sync-resources). You should be able to see your Resource in the created TOML of the Sync like so (example of a files-on-server Resource):
 
 ```toml
 [[stack]]
