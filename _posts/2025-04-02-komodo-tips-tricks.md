@@ -22,7 +22,7 @@ This is living guide that will be updated as Komodo is updated and community kno
 
 ### Can Komodo Core update itself? {#komodo-core-update}
 
-Yes! If using [systemd Periphery agent](https://komo.do/docs/connect-servers#install-the-periphery-agent---systemd) you can re-deploy a Stack with Komodo Core without issue. If you are using the Docker agent it's recommended to keep the periphery and core services in different stacks so the UI continues to work during deployment, but not necessary.
+Yes! If using [systemd Periphery agent](https://komo.do/docs/setup/connect-servers#install-the-periphery-agent---systemd) you can re-deploy a Stack with Komodo Core without issue. If you are using the Docker agent it's recommended to keep the periphery and core services in different stacks so the UI continues to work during deployment, but not necessary.
 
 ### Can Periphery Agents updates be automated? {#periphery-automated-update}
 
@@ -33,9 +33,9 @@ Not from within Komodo the same way Core be can updated, unfortunately. However,
 
 ### How can I customize systemd Periphery Agents?
 
-The komodo repository describes where [systemd **service units** are placed](https://github.com/moghtech/komodo/tree/main/scripts#periphery-setup-script) when using the [official install script.](https://komo.do/docs/connect-servers#install-the-periphery-agent---systemd)
+The komodo repository describes where [systemd **service units** are placed](https://github.com/moghtech/komodo/tree/main/scripts#periphery-setup-script) when using the [official install script.](https://komo.do/docs/setup/connect-servers#install-the-periphery-agent---systemd)
 
-Properties like the Working Directory and [Komodo Environmental Variables](https://komo.do/docs/connect-servers#configuration), specific to Komodo, can be added to the Service Unit to configure the Periphery Agent without having to add these to your global environment.
+Properties like the Working Directory and [Komodo Environmental Variables](https://komo.do/docs/setup/connect-servers#configuration), specific to Komodo, can be added to the Service Unit to configure the Periphery Agent without having to add these to your global environment.
 
 To make these modification use a [**drop-in** file](https://unix.stackexchange.com/a/468067) so that your modifications survive any future Periphery install script updates.
 
@@ -83,7 +83,7 @@ Stacks can be automatically updated using **Auto Update** or **Full Stack Auto U
 
 #### Updating Specific Stacks
 
-For simple stack matching based on name, wildcard, or regex (no lookbehind/backtracing) create a [**Procedure**](https://komo.do/docs/procedures#procedures) and use a **Batch Deploy** stage with your desired target.
+For simple stack matching based on name, wildcard, or regex (no lookbehind/backtracing) create a [**Procedure**](https://komo.do/docs/resources/procedures) and use a **Batch Deploy** stage with your desired target.
 
 For more advanced filtering create an **Action** using the snippet below. Fill out the arrays at the top of the snippet with your **exclude** filter values.
 
@@ -168,9 +168,9 @@ See Nick Cunningham's post: [**How To: Automate version updates for your self-ho
 
 ### How do I bulk import existing compose projects?
 
-An existing compose project can be manually imported as a **Files on Server** mode **Stack**. [Make sure the Stack name is the same as the compose project](https://komo.do/docs/docker-compose#importing-existing-compose-projects) so Komodo picks up its status automatically.
+An existing compose project can be manually imported as a **Files on Server** mode **Stack**. [Make sure the Stack name is the same as the compose project](https://komo.do/docs/resources/docker-compose#importing-existing-compose-projects) so Komodo picks up its status automatically.
 
-Komodo does not have a built-in way to import compose projects automatically. However, **I have created a small tool that can generate [Sync Resource](https://komo.do/docs/sync-resources) TOML from many existing compose projects.** That TOML can be copy-pasted into Komodo, or directly created with the API, to create Stacks from your existing compose-folders.
+Komodo does not have a built-in way to import compose projects automatically. However, **I have created a small tool that can generate [Sync Resource](https://komo.do/docs/resources/sync-resources) TOML from many existing compose projects.** That TOML can be copy-pasted into Komodo, or directly created with the API, to create Stacks from your existing compose-folders.
 
 More information and instructions to use this tool are at [**https://foxxmd.github.io/komodo-import**](https://foxxmd.github.io/komodo-import) and the [interactive Quickstart docs](https://foxxmd.github.io/komodo-import/docs/quickstart)
 
@@ -202,7 +202,7 @@ For ntfy/gotify/discord/apprise implementations I developed you can use [`UNRESO
 
 First, you should check if it's supported by [apprise](https://github.com/caronc/apprise/wiki#notification-services). If it is then use the apprise implementation from above as that is probably the easiest route.
 
-If it is not supported by apprise or you want to build your own then check out my repository where I implemented notification Alerters, [https://github.com/FoxxMD/komodo-utilities](https://github.com/FoxxMD/komodo-utilities). The repo uses VS Code Devcontainers for easy environment setup and each implementation uses the official [Komodo Typescript API client](https://komo.do/docs/api) to make things simple. It should be straightforward to fork my repo, copy-paste one of the existing implementations, and modify [`program.ts`](https://github.com/FoxxMD/komodo-utilities/blob/main/notifiers/gotify/program.ts) to work with your service.
+If it is not supported by apprise or you want to build your own then check out my repository where I implemented notification Alerters, [https://github.com/FoxxMD/komodo-utilities](https://github.com/FoxxMD/komodo-utilities). The repo uses VS Code Devcontainers for easy environment setup and each implementation uses the official [Komodo Typescript API client](https://komo.do/docs/ecosystem/api) to make things simple. It should be straightforward to fork my repo, copy-paste one of the existing implementations, and modify [`program.ts`](https://github.com/FoxxMD/komodo-utilities/blob/main/notifiers/gotify/program.ts) to work with your service.
 
 ### Run Directory is defined but the entire repo is downloaded? {#run-directory-repo}
 
@@ -435,9 +435,9 @@ If you need to keep better track of your changes, want to build the image before
 
 If the use-case is building one image that can be deployed to **one, standalone container** than the convenient way to do this is to:
 
-* setup a local [Builder](https://komo.do/docs/build-images/builders) and configure a Build without any Image Registry (not publishing externally)
+* setup a local [Builder](https://komo.do/docs/resources/build-images/builders) and configure a Build without any Image Registry (not publishing externally)
 * Build the image
-* Create a [Deployment](https://komo.do/docs/resources#deployment) with the [Komodo build you just made](https://komo.do/docs/deploy-containers/configuration#attaching-a-komodo-build)
+* Create a [Deployment](https://komo.do/docs/resources#deployment) with the [Komodo build you just made](https://komo.do/docs/resources/deploy-containers/configuration#attaching-a-komodo-build)
 
 ##### Same-Machine Stack {#same-machine-stack-image}
 
@@ -514,7 +514,7 @@ Then, restart docker for the change to take effect.
 
 ### How to create post-build steps for a Build? {#post-build-step}
 
-There is no built-in "post-build" functionality for a [Build](https://komo.do/docs/build-images). But this functionality can be created using an [Action](https://komo.do/docs/procedures#actions) to run your post-build commands, combined with a [Procedure](https://komo.do/docs/procedures#procedures) that runs the Build.
+There is no built-in "post-build" functionality for a [Build](https://komo.do/docs/build-images). But this functionality can be created using an [Action](https://komo.do/docs/resources/procedures#actions) to run your post-build commands, combined with a [Procedure](https://komo.do/docs/resources/procedures#procedures) that runs the Build.
 
 Create an **Action** that
 
@@ -606,7 +606,7 @@ First, You'll need an **API Key and Secret** for a Komodo User. (Settings -> Use
 
 ### How do I use the API?
 
-Komodo has official [Rust and Typescript clients](https://komo.do/docs/api) for programmatic usage anywhere outside of Komodo. Inside Komodo, the Typescript Client can be used in an [**Action** Resource](https://komo.do/docs/procedures#actions) (which can then be composed as part of a larger [**Procedure** Resource](https://komo.do/docs/procedures)). When using the client within these mentioned Resource it does not need to be authenticated. Additionally, Actions and Procedures can be run on a schedule configured within Komodo.
+Komodo has official [Rust and Typescript clients](https://komo.do/docs/ecosystem/api) for programmatic usage anywhere outside of Komodo. Inside Komodo, the Typescript Client can be used in an [**Action** Resource](https://komo.do/docs/resources/procedures#actions) (which can then be composed as part of a larger [**Procedure** Resource](https://komo.do/docs/resources/procedures)). When using the client within these mentioned Resource it does not need to be authenticated. Additionally, Actions and Procedures can be run on a schedule configured within Komodo.
 
 See the [available modules](https://docs.rs/komodo_client/latest/komodo_client/api/index.html#modules) for all possible functions and example arguments that can be used with the client libraries.
 
