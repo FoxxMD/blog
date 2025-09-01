@@ -704,7 +704,7 @@ if [[ -z "$1" ]]; then
   printf "Usage: CONTAINER_FUZZY_NAME [SHELL_CMD:-sh]\n"
 else
 
-  names=$(docker ps --filter name=^/.*$1.*$ --format '{{.Names}}')
+  {% raw %}names=$(docker ps --filter name=^/.*$1.*$ --format '{{.Names}}'){% endraw %}
   lines=$(echo -n "$names" | grep -c '^')
   name=""
 
