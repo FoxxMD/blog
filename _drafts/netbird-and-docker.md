@@ -46,14 +46,39 @@ If you do this make sure there is a way to remove the static route on the device
 Can use [DHCPCD or DHCLIENT hooks](https://netbeez.net/blog/linux-dhcp-hooks-network-engineers/) to setup a script to delete the route when the associated interface comes up:
 
 ```shell
-#!/bin/bash
-
-if [[ "$interface" == "ensX" ]]
+if [ "$interface" == "ensX" ]
 then
     echo -e "\nRemoving extra routes"
     ip route del 100.110.0.0/16 via 192.168.0.X dev ensX
 fi
 ```
+
+Or try running after interface is up with systemd
+
+```
+[Unit]
+Description=Drop static route
+After=ifup@ens18.service
+
+[Service]
+# the - forces systemd to ignore error from command if route doesn't exist
+ExecStart=-ip route del 100.110.0.0/16 via 192.168.0.X dev ens18
+
+[Install]
+WantedBy=multi-user.target
+```
+
+Neither of the above ended up working for me...the route seems to be added *after* the interface is up but I can't figure out where in the system boot up lifecycle.
+
+The only thing did work for me was disabling *all* dhcp option 121 functionality by editing `dhclient` config and commenting out this line:
+
+```diff
+-option rfc3442-classless-static-routes code 121 = array of unsigned integer 8;
++#option rfc3442-classless-static-routes code 121 = array of unsigned integer 8;
+```
+{: file='/etc/dhcp/dhclient.conf'}
+
+This is not ideal but it works, for now.
 
 ## Test Routing
 
