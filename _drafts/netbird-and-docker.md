@@ -11,6 +11,9 @@ mermaid: true
 
 # Setup Netbird
 
+* https://github.com/netbirdio/netbird/pull/4213 mtu is now configurable
+* ip range is now configurable
+
 ## Add Peers
 
 ### Add NB Host
@@ -114,3 +117,18 @@ Need to set mtu here with
 # Bonus: Connectivity w/o VPN
 
 SSH tunnelling for port forwarding
+
+# Bonus: Traefik Routing
+
+Use a "front end" Traefik instance as a Load Balancer/TCP forwarder.
+
+* Handle multiple domains to different traefik instances on the same (VPC) machine
+* VPC-side traefik proxying critical services on VPC
+* LAN-side traefik proxying everything else that should be public, running on your own hardware
+  * Proxies straight to LAN IP, no need for overlay network specifically
+* Use PROXY Protocol to preserve "forwarded for" information, makes front end transparent to downstream traefik instances
+
+https://community.traefik.io/t/proxy-protocol-and-getting-original-clientip-at-backend/26555/8
+
+https://doc.traefik.io/traefik/reference/routing-configuration/tcp/serverstransport/#proxyprotocolversion
+https://doc.traefik.io/traefik/reference/install-configuration/entrypoints/#proxyprotocol-and-load-balancers
