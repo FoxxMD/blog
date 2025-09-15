@@ -118,10 +118,10 @@ This _could_ be fixed by running `chown myUser:myUser /my/host/directory` **with
 
 #### Migrating Configuration {#migrating-periphery-configuration}
 
-If you are using [`environment:` on the periphery container](https://komo.do/docs/setup/connect-servers#install-the-periphery-agent---container) in order to pass in configuration, EX `PERIPHERY_ROOT` or `PERIPHERY_PASSKEYS` etc.., you will need to **either** 
+If you are using [`environment:` on the periphery container](https://komo.do/docs/setup/connect-servers#install-the-periphery-agent---container) for configuration, EX `PERIPHERY_ROOT` or `PERIPHERY_PASSKEYS` etc.., you will need to **either** 
 
 a) convert these to a [`periphery.config.toml`](https://komo.do/docs/setup/connect-servers#configuration) file and place it in the [appropriate path](https://github.com/moghtech/komodo/tree/main/scripts#system-requires-root). 
-If you are already using a `periphery.config.toml` file then just make sure to place it in the correct location.
+If you are already using a `periphery.config.toml` file then make sure to place it in the correct location.
 
 b) after installing systemd agent, create a [drop-in systemd file](https://blog.foxxmd.dev/posts/komodo-tips-tricks/#how-can-i-customize-systemd-periphery-agents) with `Environment=...` entries containing all the environmental configuration currently used in your periphery container
 
@@ -133,7 +133,7 @@ Use either of the two methods below to restore Periphery Agent state:
 
 The [periphery state ownership issues](#periphery-owned) can be bypassed by using a [Resource Sync](../migrating-to-komodo#resource-sync) to re-deploy the Resources on your server. In this scenario you would:
 
-* create a **Managed** Sync Resource
+* create a **Managed** Resource Sync
 * Refresh/get the TOML for your server (periphery agent machine) backed up somewhere
 * Switch to systemd agent *without* re-using any directories from the container
   * This will create a "blank" server with only your [migrated configuration](#migrating-periphery-configuration) from the first step, but no Stacks etc... yet
