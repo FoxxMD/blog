@@ -71,6 +71,85 @@ Likely you installed Periphery using `--user`. Depending on your OS, it may exit
 sudo loginctl enable-linger yourUsername
 ```
 
+### How can I migrate periphery agent to systemd?
+
+It is possible to switch between systemd and container [periphery agents](https://komo.do/docs/setup/connect-servers) without needing to re-create your Resources, Stacks, etc... manually, but it may require some planning depending on which you switch from/to.
+
+##### Concepts to Understand {#agent-migration-concepts}
+
+###### **Periphery Configuration and State are Indepedent** {#periphery-independent}
+
+* Periphery **Configuration** can be expressed as a [`periphery.config.toml` file](https://komo.do/docs/setup/connect-servers#configuration) or as [environmental variables](https://komo.do/docs/setup/connect-servers#install-the-periphery-agent---container). All agent types can use both, but *where they are defined* is dependent on the agent type used.
+* Periphery **State** is data storing the *internal state* of the Periphery agent EX what Stacks are on this machine, cloned repositories for Stacks, Build artifacts, .env files written from Stack Environment, etc...
+* **State** be reconstructed from a [Resource Sync](../migrating-to-komodo#resource-sync) but **Configuration** cannot
+
+###### **Periphery State is owned by the user running the Agent** {#periphery-owned}
+
+All of the files/folders created by the agent to hold **State** is created by the user running the agent:
+
+* [Periphery **container**](https://komo.do/docs/setup/connect-servers#install-the-periphery-agent---container) is run by `root`
+* [Periphery systemd **system**](https://github.com/moghtech/komodo/tree/main/scripts#system-requires-root) is run by `root`
+* [Periphery systemd **user**](https://github.com/moghtech/komodo/tree/main/scripts#system-requires-root) is run by your local user
+
+If you switch from an agent run by `root` to one run by a local user you may run into file/folder ownership issues. These can be corrected with `chown -R` but it's important to recognize this is something you may need to deal with.
+
+###### **Compose project volumes are independent from Periphery Data and created by the user running the Agent** {#compose-owned}
+
+Any non-existent **bind-mounted** directories, or explicit files, in your compose `volumes:` are created by the user running `docker compose`.
+
+These volumes are *not* part of Periphery State and cannot be fixed by Sync Resource.
+
+<details markdown="1">
+
+<summary>Example</summary>
+
+```yaml
+services:
+  myService:
+    volumes:
+      - /my/host/directory:/config
+```
+
+If `/my/host/directory` didn't already exist then it will be created by the user running `docker compose` on the host machine. For Periphery container and system agent this would be `root`. If you decide to switch to systemd **user**, and setup [docker management using a non-root user](https://docs.docker.com/engine/install/linux-postinstall/#manage-docker-as-a-non-root-user), you *may* have permission issues when trying to run the container.
+
+This _could_ be fixed by running `chown myUser:myUser /my/host/directory` **without** recursive (no `-R`). But it might need to be fixed on a case-by-case basis as well.
+
+</details>
+
+#### Migrating Configuration {#migrating-periphery-configuration}
+
+If you are using [`environment:` on the periphery container](https://komo.do/docs/setup/connect-servers#install-the-periphery-agent---container) in order to pass in configuration, EX `PERIPHERY_ROOT` or `PERIPHERY_PASSKEYS` etc.., you will need to **either** 
+
+a) convert these to a [`periphery.config.toml`](https://komo.do/docs/setup/connect-servers#configuration) file and place it in the [appropriate path](https://github.com/moghtech/komodo/tree/main/scripts#system-requires-root). 
+If you are already using a `periphery.config.toml` file then just make sure to place it in the correct location.
+
+b) after installing systemd agent, create a [drop-in systemd file](https://blog.foxxmd.dev/posts/komodo-tips-tricks/#how-can-i-customize-systemd-periphery-agents) with `Environment=...` entries containing all the environmental configuration currently used in your periphery container
+
+#### Migrating State {#migrating-periphery-state}
+
+Use either of the two methods below to restore Periphery Agent state:
+
+##### **Reproducing from Sync Resource** {#periphery-from-sync-resource}
+
+The [periphery state ownership issues](#periphery-owned) can be bypassed by using a [Resource Sync](../migrating-to-komodo#resource-sync) to re-deploy the Resources on your server. In this scenario you would:
+
+* create a **Managed** Sync Resource
+* Refresh/get the TOML for your server (periphery agent machine) backed up somewhere
+* Switch to systemd agent *without* re-using any directories from the container
+  * This will create a "blank" server with only your [migrated configuration](#migrating-periphery-configuration) from the first step, but no Stacks etc... yet
+* Create the Resource Sync from the backed up TOML
+* **Execute Sync** to re-create all your stacks etc...
+
+This does not re-deploy the actual docker compose projects or create/destroy anything on the machine, just the __periphery state__ of "this stack belongs on this machine" etc -- so you'd be back to your original state but with the new periphery agent.
+
+##### **Using Existing Periphery State Data** {#periphery-from-existing-state}
+
+You may need to move the directories you bound in the periphery container `volumes:` to their default location of `/etc/komodo` or specify `root_directory` to tell the new agent where the komodo directories are located.
+
+Depending on which [systemd agent you are switching to](#periphery-owned) you _may_ need to change the ownership of the existing komodo directories using `chown`.
+
+If you can resolve these issues then you can use all of the existing komodo data/directories as-is with the new agent.
+
 ### How can I automate stack updates?
 
 Komodo has built-in checking for image updates on a Stack. These need to be enabled on each Stack. Find the configuration at
