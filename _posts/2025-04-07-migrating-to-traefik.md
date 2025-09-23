@@ -1764,6 +1764,16 @@ Yes! Probably...let's clarify some things:
 * *Do I have to do things the swarm way if in a swarm?*
   * **No.** And that is the crux of this FAQ...we can take advantage of Swarm features (Overlay network) without needing to actually use Swarm for anything else.
 
+**When Should You NOT Swarm?**
+
+* Hosts span an untrusted network/public internet
+  * Swarm requires [some open ports](https://docs.docker.com/engine/swarm/swarm-tutorial/#open-protocols-and-ports-between-the-hosts) that should never be opened to the public internet.
+  * Even on moderately trusted networks, encrypting overlay networks can have [non-trivial performance penalties](https://docs.docker.com/engine/network/drivers/overlay/#encrypt-traffic-on-an-overlay-network) and encryption is not supported on windows
+* Hosts communicate solely over a VPN
+  * VXLAN, the protocol Swarm uses for host communication and overlay networks, introduces [50 bytes of packet overhead](https://lev-0.com/2024/03/11/scalable-and-secure-vxlan-multisite-using-netbird-part-1initial-config-l3vpn/). Wireguard also has its own packet overhead. Combining both of these for traffic can cause MTU over-limit issues for the [swarm ingress network](https://github.com/moby/moby/issues/36689#issuecomment-987706496) and elsewhere.
+
+The above points don't mean you shouldn't use swarm *at all*. If you have a trusted network with multiple hosts swarm can still be run there -- it just shouldn't be used to join *all* hosts in the event they fit either of those scenarios.
+
 ##### A Note On Quorum
 
 Swarm nodes run as either a [manager](https://docs.docker.com/engine/swarm/how-swarm-mode-works/nodes/#manager-nodes) or [worker](https://docs.docker.com/engine/swarm/how-swarm-mode-works/nodes/#worker-nodes) node. Manager nodes are responsible for maintaining the cluster and workers are dumb nodes that just do work.[^manager-worker] Managers must [maintain a **quoroum**](https://docs.docker.com/engine/swarm/admin_guide/#maintain-the-quorum-of-managers) to decide how things are done. Each manager gets a vote. If there are 0 managers online, or *only an even number*, then a stalemate is reached and the cluster can't operate.
