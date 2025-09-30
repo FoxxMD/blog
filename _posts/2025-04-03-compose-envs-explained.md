@@ -366,7 +366,7 @@ services:
 
 Komodo takes the contents of the **Environment** section in your Komodo Stack and:
 
-* Interpolates any [Variables](https://komo.do/docs/variables) into the contents like `[[MY_VAR]]`
+* Interpolates any [Variables](https://komo.do/docs/resources/variables) into the contents like `[[MY_VAR]]`
 * The final content is written to the file specified by **Env File Path** in your Stack (defaults to `.env`)
   * The file specified by Env File Path is the **ONLY** file that Variable interpolation occurs in
 
@@ -376,7 +376,7 @@ After this is done it then runs `docker compose up --env-file .env` and includes
 
 <summary>Variables Example</summary>
 
-Assume you have this [**Variable**](https://komo.do/docs/variables) already in Komodo (in Settings -> Variables)
+Assume you have this [**Variable**](https://komo.do/docs/resources/variables) already in Komodo (in Settings -> Variables)
 
 * `MY_SECRET_1` : `aCoolSecret`
 
