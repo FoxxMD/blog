@@ -128,21 +128,43 @@ CS develops and maintains a large list of Bouncers for all popular platforms.
 
 ### Prior Art Insufficient
 
-* CS docs *tutorials* are fine for single instance, all-in-one
-  * docs explain concepts are separate but all tutorials assume AIO instance
-* CS docs cover multi-host as a [short guide](https://docs.crowdsec.net/u/user_guides/multiserver_setup/) and a [blog post](https://www.crowdsec.net/blog/multi-server-setup) but
-  * Assume you already know how everything works already
-  * Assume you want shared db, more complicated setup
-  * Don't use docker for CS instances
-  * Are outdated WRT config/env
-  * Are aimed at systems with much larger topology than homelabs, verging on enterprise
-  * Assume you will be using central api
+<details markdown=1>
 
-### Why not AIO?
+<summary>Official docs describe concepts separately but implementation examples assume a single instance</summary>
 
-* Log processor performance under heavy load can cause problems https://github.com/FoxxMD/crowdsecBench
-* Separating decision source (lapi) from processors is more reliable
-  * IE log processor goes down or requires restart, don't make lapi unavailable for bouncers
+ There's a disconnect for new users when trying to match up what is the described in the documentation with what is immediately shown in code: [Architecture](https://docs.crowdsec.net/docs/next/intro#architecture) and [Concepts](https://docs.crowdsec.net/docs/next/concepts) describe individual components but then [acquisiton](https://docs.crowdsec.net/docs/next/log_processor/intro/) only shows reading files from a local directory, or [LAPI docs](https://docs.crowdsec.net/docs/next/local_api/configuration) mention different machines but doesn't give context on why you would have different machines or the full setup for two in a management/child relationship.
+
+</details>
+
+<details markdown=1>
+
+<summary>The official, multi-host documentation assumes expert knowledge</summary>
+
+They fail to consider if the reader has strong mental model of how Crowdsec works to begin with.
+
+The [guide](https://docs.crowdsec.net/u/user_guides/multiserver_setup/) provides links to getting started guides and some commands for getting log processors registered with LAPI but fails to convey to the user that the crowdsec app can be used for separate roles. It falls short with helping transform the mental model of "this is all one app on one machine" to "this app can operate independently for only one role and then communicate with another crowdsec app acting as management".
+
+The [blog post](https://www.crowdsec.net/blog/multi-server-setup) does a better job of explaining the architecture but assumes you are switching to postgres for a shared database which is not necessary if there is only one management instance. The post is more geared for an enterprise or large-scale deployment which is too overkill for homelab scale.
+
+</details>
+
+### Why not Single Instance, Eveywhere?
+
+<details markdown=1>
+
+<summary>Log processing can be compute intensive</summary>
+
+https://github.com/FoxxMD/crowdsecBench
+
+</details>
+
+<details markdown=1>
+
+<summary>Separate components makes everything more reliable</summary>
+
+IE log processor goes down or requires restart, don't make lapi unavailable for bouncers
+
+</details>
 
 ## Architecture Overview
 
