@@ -9,11 +9,51 @@ pin: false
 mermaid: true
 ---
 
+[Crowdsec](https://www.crowdsec.net/) is moderately known within the homelab community but the majority of knowledge available, both in the [official documentation](https://docs.crowdsec.net/docs/intro/) and other community article sources, is surface-level and tends to frame its use in the context of a **single machine** where all the web traffic, monitoring, and blocking takes place.
+
+This is adequete for toy implementations and beginner usage but falls short in the homelab where:
+
+1. web traffic can be distributed across mutliple machines/networks
+2. not all machines are created equal in terms of traffic volume and compute capacity
+
+which is unfortunate because Crowdsec is *designed for distributed use* and it's where it shines the brightest. It's also the least documented and most confusing for scaling up.
+
+In this article I lay out how to think about Crowdsec for scaling up in the homelab, attempt to fill the void beyond single-instance usage, and provide practical examples for implementing your own homelab-scale Crowdsec solution.
+
 ## Crowdsec?
 
-* What is crowdsec
-* Why should I use it?
-* Maybe explain WAF
+Crowdsec is a multi-component, network security solution designed to detect and prevent bad actors from exploiting your systems. At a high level, it does this by:
+
+* *proactively* blocking known bad actors from a crowdsourced database
+* *reactively* detecting suspicious network activity and blocking the associated actor by...
+  * monitoring logs from across your systems (web servers, ssh, syslogs, iis, iptables, etc.)
+  * matching attack patterns from log lines
+
+The solution is composed of:
+
+* a crowdsec binary that can be run natively or using a docker container
+  * takes configuration through config files
+  * can behave as individual components described in [Key Concepts](#key-concepts) below, or can do everything at the same time as an All In One (AIO) solution
+* [Remediation Components](#bouncers), software that communicate with the crowdsec binary to apply rules to network software in order to block actors
+
+### Why Should I Use It?
+
+It's a fact of life on the public internet that bad actors *will* be probing and trying to exploit your services, if they are accessible. It doesn't matter the size of the web server, what is hosted on it, or how obscure you try to make it: someone will always try to exploit it.
+
+Crowdsec is an extremely easy way to harden access and prevent bad actors from even attempting to exploit your services. You benefit greatly by being able proactively block threat actors that have already tried to attack other crowdsec users.
+
+TODO add benefits of reactive detection:
+
+* react to novel actors
+* benefit from community parsers and scenarios, zero barrier to leveraging these
+
+### Why Should I Not Use It?
+
+**If you do not have any services exposed to the internet** then Crowdsec may not be necessary for you. Using a properly configured Wireguard server or Tailscale for access to your network bypasses all of the common weakpoints an attacker would be able to probe.
+
+**If you need a full IDS/IPS[^detection]** then Crowdsec may not be the best choice. It does not operate on your actual network interfaces, do deep packet inspection, capture or correlate actor activity across the network, or provide audit logs for detected activity. You are better off with something like [Suricata](https://suricata.io/).
+
+**If you already use something like [fail2ban](https://github.com/fail2ban/fail2ban)** or have fail2ban configured with bespoke filtering Crowdsec may not have feature parity for you. Setting up fail2ban filters from scratch is much easier than creating your own log parsers and scenarios in Crowdsec.
 
 ### Key Concepts
 
@@ -22,6 +62,10 @@ mermaid: true
 The CrowdSec application can be deployed with "management" enabled. CS docs refer to this functionality as [Local API (LAPI)](https://docs.crowdsec.net/u/user_guides/lapi_mgmt).
 
 The Management instance is the "brains" of CrowdSec's security engine. In most non-enterprise settings there is only one Management instance that all other components talk to.
+
+<details markdown=1>
+
+<summary>Details</summary>
 
 The management functionality enables the CS app to:
 
@@ -34,11 +78,17 @@ The management functionality enables the CS app to:
 
 Notably, the Management instance does *not* need acquisition config or hub collections/scenarios/etc installed on it. That is only needed on Log Processors.
 
+</details>
+
 #### Log Processor
 
 The CrowdSec application can be deployed with log processing (acquisition) and scenario monitoring functionality. CS docs refer to this functionality as [Log Processing](https://docs.crowdsec.net/docs/next/log_processor/intro).
 
 There may be many Log Processor instances of the Crowdsec application, for example one per host. Log Processors are the "senses" (see/hear/touch) of the CrowdSec "brain". They all communicate back to a Management instance.
+
+<details markdown=1>
+
+<summary>Details</summary>
 
 When the CS app is used for Log Processing it:
 
@@ -50,6 +100,8 @@ When the CS app is used for Log Processing it:
 
 Note: Data Source, Parsers, and Scenarios can be installed as bundles called [**Collections**](https://app.crowdsec.net/hub/collections).
 
+</details>
+
 #### Bouncers
 
 A Bouncer is an application, separate from the Crowdsec app, that is used to:
@@ -59,12 +111,18 @@ A Bouncer is an application, separate from the Crowdsec app, that is used to:
 
 Crowdsec docs refer to Boucers as [Remediation Components](https://docs.crowdsec.net/u/bouncers/intro). There may be many Bouncers, all communicating with a Management instance. Bouncers are the "weapons" used to react after the CrowdSec "brain" realizes there is an "attack" (decision from Log Processor).
 
+<details markdown=1>
+
+<summary>Details</summary>
+
 Some examples of bouncers, and how they use Management:
 
 * [Firewall](https://docs.crowdsec.net/u/bouncers/firewall) - gets all IPs from Decicions stored in the Management instance and applies them as `BLOCK` rules to a host's firewall application (`iptables` or `nftables`)
 * [Traefik](https://plugins.traefik.io/plugins/6335346ca4caa9ddeffda116/crowdsec-bouncer-traefik-plugin) - Installed as a middleware. When a request is intercepted it queries the Management instance for the request IP. If the IP is banned it returns a 403.
 
 CS develops and maintains a large list of Bouncers for all popular platforms.
+
+</details>
 
 ## Why Is this post needed?
 
@@ -128,3 +186,9 @@ Architecture will be similar to https://docs.crowdsec.net/u/user_guides/multiser
 
 * create bouncer api key in Management
 * install bouncer component or configure for service
+
+___
+
+## Footnotes
+
+[^detection]: Intrustion **Detection** System and Intrustion **Prevention** System
