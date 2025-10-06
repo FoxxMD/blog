@@ -38,14 +38,13 @@ The solution is composed of:
 
 ### Why Should I Use It?
 
-It's a fact of life on the public internet that bad actors *will* be probing and trying to exploit your services, if they are accessible. It doesn't matter the size of the web server, what is hosted on it, or how obscure you try to make it: someone will always try to exploit it.
+**You have publicly exposed services without any reactive security.** It's a fact of life on the public internet that bad actors *will* be probing and trying to exploit your services, if they are accessible. It doesn't matter the size of the web server, what is hosted on it, or how obscure you try to make it: someone will always try to exploit it.
 
-Crowdsec is an extremely easy way to harden access and prevent bad actors from even attempting to exploit your services. You benefit greatly by being able proactively block threat actors that have already tried to attack other crowdsec users.
+Without reactive security an attacker can try to login or probe your services countless times without any retaliatory action by your system. Well-designed services may have rate limiting in place, or be hardened enough that no explotation can happen, but this will still allow slow brute forcing. And it's likely not 100% of your services are this hardened.
 
-TODO add benefits of reactive detection:
+**Proactive security is free.** Even if you use the minimal crowdsec setup you will still benefit from the [community blocklist](https://docs.crowdsec.net/docs/next/central_api/community_blocklist/) which consists of crowdsourced bad actors that will be blocked by your [chosen bouncers](#bouncers) immediately.
 
-* react to novel actors
-* benefit from community parsers and scenarios, zero barrier to leveraging these
+**Benefit from pre-existing log parsers and scenarios.** You don't need any expert knowledge to parse logs from [numerous applications](https://app.crowdsec.net/hub/log-parsers) or detect the most common [attack scenarios.](https://app.crowdsec.net/hub/scenarios) [Crowdsec Hub](https://app.crowdsec.net/hub) is a centralized repository of first party and community-built configurations that can be downloaded and applied to your instances with one line.
 
 ### Why Should I Not Use It?
 
