@@ -78,6 +78,26 @@ The management functionality enables the CS app to:
 
 Notably, the Management instance does *not* need acquisition config or hub collections/scenarios/etc installed on it. That is only needed on Log Processors.
 
+```mermaid
+flowchart TD
+
+    subgraph mgt[crowdsec app lapi]
+    dec[decisions] -->|bans IPs and stores| db[database]
+    mac[machines]
+    end
+
+    mac -->|authenticate| lp1
+    mac -->|authenticate| lp2
+
+    subgraph lp1[crowdsec app on server1]
+    buck1[scenario buckets from log processor] -->|sends alert| dec
+    end
+
+    subgraph lp2[crowdsec app on server2]
+    buck2[scenario buckets from log processor] -->|sends alert| dec
+    end
+```
+
 </details>
 
 #### Log Processor
@@ -100,6 +120,21 @@ When the CS app is used for Log Processing it:
 
 Note: Data Source, Parsers, and Scenarios can be installed as bundles called [**Collections**](https://app.crowdsec.net/hub/collections).
 
+```mermaid
+flowchart TD
+
+    subgraph lp[crowdsec app]
+    acquiconf[acqui.d config] -->|use traefik.log| acqui
+    acqui[acquisition] -->|parsers file and detects patterns| sc[scenario buckets]
+    end
+
+    subgraph traefik[traefik]
+    tlog[access log traefik.log] -->|reads log file| acqui
+    end
+
+     sc -->|send alert| mgt[crowdsec app lapi]
+```
+
 </details>
 
 #### Bouncers
@@ -121,6 +156,21 @@ Some examples of bouncers, and how they use Management:
 * [Traefik](https://plugins.traefik.io/plugins/6335346ca4caa9ddeffda116/crowdsec-bouncer-traefik-plugin) - Installed as a middleware. When a request is intercepted it queries the Management instance for the request IP. If the IP is banned it returns a 403.
 
 CS develops and maintains a large list of Bouncers for all popular platforms.
+
+```mermaid
+flowchart TD
+
+    subgraph mgt[crowdsec app lapi]
+    boun[bouncers] -->|create key| bkey[bouncer keys]
+    dec[decisions]
+    end
+
+    bkey <-->|Use key to authenticate| bouncer1
+
+    subgraph bouncer1[firewall on server1]
+    dec -->|pulls decision IPs to block| rules[firewall rules]
+    end
+```
 
 </details>
 
