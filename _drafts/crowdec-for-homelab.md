@@ -173,9 +173,66 @@ flowchart TD
 
 </details>
 
+## Why not use a Single Instance?
+
+##### **Log processing is compute intensive!**
+
+Crowdsec log parsing and scenario/pattern matching mainly uses regular expressions. Depending on what scenarios and parses are enabled the computation for using regex can be *expensive.* [^regexflags]
+
+I created a [self contained benchmark](https://github.com/FoxxMD/crowdsecBench) for measuring cpu usage based on volume. The test uses [k6](https://grafana.com/docs/k6/latest/) to generate load through a reverse proxy (traefik) and parse logs with minimal collections: [crowdsecurity/linux](https://app.crowdsec.net/hub/author/crowdsecurity/collections/linux) and [crowdsecurity/traefik](https://app.crowdsec.net/hub/author/crowdsecurity/collections/traefik) which includes the most common [http attack scenarios](https://app.crowdsec.net/hub/author/crowdsecurity/collections/base-http-scenarios).
+
+The benchmark is dockerized with a script to automate running and reproduction: [https://github.com/FoxxMD/crowdsecBench](https://github.com/FoxxMD/crowdsecBench)
+
+<details markdown=1>
+
+<summary>Benchmark</summary>
+
+**These results were generated with:**
+
+* **randomized URL and user agent**
+* **50 requests/sec**
+* **30 second load duration**
+
+**Raspberry Pi4**
+
+![pi4](assets/img/crowdsec_bench/plot_pi4.png)
+
+**Raspberry Pi5**
+
+![pi5](assets/img/crowdsec_bench/plot_pi5.png)
+
+**i5-6500T**
+
+![i5-6500T](assets/img/crowdsec_bench/plot_6500t.png)
+
+**i5-13400T**
+
+![i5-13400](assets/img/crowdsec_bench/plot_13400.png)
+
+</details>
+
+As you can see, while not disasterous at these volumes the CPU usage is not insignificant. **Especially for lower power machines that are common in homelabs.** All it would take is a spike of 100-200 requests over a few seconds to cause issues.
+
+Additionally, it's important to realize that log processing is an *asychronous* process in crowdsec so even if the *traffic* spike only lasts a few seconds it may be many more seconds before CPU usage recovers as crowdsec chugs through the unread logs at a slower rate than realtime.
+
+Now, compound that with cpu usage from web traffic being served and processing whatever non-trivial service is receiving the traffic and you have a recipe for a bottleneck that lasts much longer than the traffic that caused it.
+
+So instead of processing logs on the same machines where they are produced it is, in many cases, possible to offload log processing to a child processor (crowdsec app) on a different host entirely. This way:
+
+* processing occurs on a beefier host that can handle the spikes
+* any cpu bottlenecking will happen on a non-critical machine so your critical services continue to operate normally
+
+##### **Separate components make everything more reliable**
+
+Crowdsec requires restarting when acquistion sources or other config changes. For crowdsec in a docker container this means restarting the entire container.
+
+If you makes changes to config that are invalid or have an issue with acquistion this could mean that even though the LAPI would technically be fine to use it is not running because crowdsec could not start up. While it is not running your bouncer cannot get decisions.
+
+This, of course, also applies to machine availability. In a multi-host environment LAPI should be on the most stable machine on your network. Keeping LAPI on a stable machine while child/log processors on other machines are restarted means bouncers have better uptime.
+
 ## Why Is this post needed?
 
-### Prior Art Insufficient
+**Prior art for Crowdsec at homelab scale are insufficient.**
 
 <details markdown=1>
 
@@ -194,24 +251,6 @@ They fail to consider if the reader has strong mental model of how Crowdsec work
 The [guide](https://docs.crowdsec.net/u/user_guides/multiserver_setup/) provides links to getting started guides and some commands for getting log processors registered with LAPI but fails to convey to the user that the crowdsec app can be used for separate roles. It falls short with helping transform the mental model of "this is all one app on one machine" to "this app can operate independently for only one role and then communicate with another crowdsec app acting as management".
 
 The [blog post](https://www.crowdsec.net/blog/multi-server-setup) does a better job of explaining the architecture but assumes you are switching to postgres for a shared database which is not necessary if there is only one management instance. The post is more geared for an enterprise or large-scale deployment which is too overkill for homelab scale.
-
-</details>
-
-### Why not Single Instance, Eveywhere?
-
-<details markdown=1>
-
-<summary>Log processing can be compute intensive</summary>
-
-https://github.com/FoxxMD/crowdsecBench
-
-</details>
-
-<details markdown=1>
-
-<summary>Separate components makes everything more reliable</summary>
-
-IE log processor goes down or requires restart, don't make lapi unavailable for bouncers
 
 </details>
 
@@ -263,3 +302,4 @@ ___
 ## Footnotes
 
 [^detection]: Intrustion **Detection** System and Intrustion **Prevention** System
+[^regexflags]: There are some [experimental feature flags](https://www.crowdsec.net/blog/increasing-performance-crowdsec-1-5) that can be used to improve performance for regex but even with them enabled there is the potential for bottlenecking CPU usage on the host, depending on traffic volume and the compute power of your cpu.
