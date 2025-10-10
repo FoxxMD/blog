@@ -20,7 +20,7 @@ Unfortunately, even these solutions can be too broad in the access they expose: 
 
 Effectively: a service that only needs access to one specific container still has access to read data for *any* container on that docker host.
 
-**In this article I introduce a new "proxy for your proxy" that enables filtering Docker API responses to specific containers, to further enhance security and restrict access for specific usecases.**
+**In this post I introduce a new "proxy for your proxy", [foxxmd/docker-proxy-filter](https://github.com/FoxxMD/docker-proxy-filter), that enables filtering Docker API responses to specific containers, to further enhance security and restrict access for specific usecases.** [(Skip to explanation)](#restricting-docker-api-to-specific-containers)
 
 ## What is the Docker API?
 
