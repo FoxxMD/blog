@@ -47,7 +47,7 @@ This is not an issue for the Docker client since that's its intended use, but if
 
 Smart folks realized this unrestricted access could be a problem and quickly came up with a good solution: an HTTP server that *proxies* requests to `docker.sock` for you.
 
-Rather than giving your service direct access to `docker.sock` you can instead configure it to connect through the *docker socket proxy* to get the same interface to the Docker API. Then, the proxy can be configured to allow/disallow access to parts of the Docker API by blocking requests to routes by name.
+Rather than giving your service direct access to `docker.sock` you can instead configure it to connect through a *docker socket proxy* to get the same interface to the Docker API. Then, the proxy can be configured to allow/disallow access to parts of the Docker API by blocking requests to routes by name.
 
 As an example, your Service A only needs to get a list of containers to see which have the label `my.cool.label=foo`. Our docker socket proxy can disallow all requests except those that are prefixed with `/containers`. It can additionally only allow `GET` requests to this route. Now, Service A only has access to the relevant part of the API for containers and has read-only access (cannot restart/stop/create containers).
 
@@ -186,7 +186,8 @@ I am choosing to use [wollomatic/socket-proxy](https://github.com/wollomatic/soc
 
 For docker-proxy-filter:
 
-* we set `CONTAINER_LABELS=homepage` so that only containers that contain `homepage` in their labels are returned for Container List and for access to individual routes
+* we set `CONTAINER_LABELS=homepage` so that only containers that contain `homepage` in their labels key are returned for Container List and for access to individual routes
+* we set `SCRUB_ENVS=true` to prevent Homepage from being able to read environmental variables when inspecting a container
 * expose port `2375` so that Homepage can connect to it
 
 ```yaml
