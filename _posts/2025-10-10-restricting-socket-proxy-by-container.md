@@ -196,7 +196,10 @@ services:
     image: foxxmd/docker-proxy-filter
     environment:
       - PROXY_URL=http://socket-proxy:2375
+      # only containers with a label key containing "homepage" will be returned or accessible
       - CONTAINER_LABELS=homepage
+      # replace env variables in Docker Container api responses with an empty list
+      - SCRUB_ENVS=true
     ports:
       - 2375:2375
   socket-proxy:
