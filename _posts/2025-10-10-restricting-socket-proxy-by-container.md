@@ -28,9 +28,9 @@ The Docker Daemon running on your host machine communicates with programs using 
 
 Using this socket the Docker client, and any other program with access to `docker.sock`, can interact with any part of your Docker instance: start/stop container, create new containers, volumes, networks, get container logs and info, etc...
 
-> If you aren't familiar with unix sockets all that you need to understand about communication through it is that it's essentially the same as making normal HTTP calls.
+> If you aren't familiar with unix sockets all you to know about communication through it is that it's essentially the same as making normal HTTP calls.
 > 
-> For instance, to [get a list of all containers](https://docs.docker.com/reference/api/engine/version/v1.48/#tag/Container/operation/ContainerList) running on a host a call to the Docker API would be:
+> For instance, to [get a list of all containers](https://docs.docker.com/reference/api/engine/version/v1.48/#tag/Container/operation/ContainerList) running on a host, a call to the Docker API would be:
 > 
 > ```shell
 > $ curl --unix-socket /var/run/docker.sock http:/v1.50/containers/json
@@ -39,7 +39,7 @@ Using this socket the Docker client, and any other program with access to `docke
 > ```
 {: .prompt-tip }
 
-This makes communication with the Docker Daemon easy but it's also a problem: **the Docker API has no authentication and no access control.** Other than filesystem permissions applied to `docker.sock`, if a program can access `docker.sock` then it can do *anything* with Docker.
+This makes communication with the Docker Daemon easy but it also poses a problem: **the Docker API has no authentication and no access control.** Other than filesystem permissions applied to `docker.sock`, if a program can access `docker.sock` then it can do *anything* with Docker.
 
 This is not an issue for the Docker client since that's its intended use, but if another program or service wants to use the Docker API there is no way to control what it can do with that access.
 
@@ -49,7 +49,56 @@ Smart folks realized this unrestricted access could be a problem and quickly cam
 
 Rather than giving your service direct access to `docker.sock` you can instead configure it to connect through a *docker socket proxy* to get the same interface to the Docker API. Then, the proxy can be configured to allow/disallow access to parts of the Docker API by blocking requests to routes by name.
 
-As an example, your Service A only needs to get a list of containers to see which have the label `my.cool.label=foo`. Our docker socket proxy can disallow all requests except those that are prefixed with `/containers`. It can additionally only allow `GET` requests to this route. Now, Service A only has access to the relevant part of the API for containers and has read-only access (cannot restart/stop/create containers).
+> As an example, your Service A only needs to get a list of containers to see which have the label `my.cool.label=foo`:
+> 
+> Our docker socket proxy can disallow all requests except those that are prefixed with `/containers`. It can additionally only allow `GET` requests to this route. Now, Service A only has access to the relevant part of the API for containers and has read-only access (cannot restart/stop/create containers).
+{: .prompt-info }
+
+<details markdown=1>
+
+<summary>Example</summary>
+
+```yaml
+services:
+  socket-proxy:
+    image: lscr.io/linuxserver/socket-proxy:latest
+    environment:
+      - ALLOW_START=0
+      - ALLOW_STOP=0
+      - ALLOW_RESTARTS=0
+      - CONTAINERS=1
+      - INFO=1
+      - POST=0
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    ports:
+      - 2375:2375
+```
+{: file="compose.yaml"}
+
+```shell
+$ curl http://localhost:2375/v1.50/containers/json
+# response output:
+[{"Id":"2c97d3e28dafa0b9af160bcbc67c5785930cfa2fbef2802ffe0ff8a76285da47","Names":["/my-service-a"],"Image":"qmcgaw/gluetun", ... ]
+```
+{: file="Get Containers"}
+```
+$ curl http://localhost:2375/v1.50/volumes
+# response output:
+<html><body><h1>403 Forbidden</h1>
+Request forbidden by administrative rules.
+</body></html>
+```
+{: file="Get Volumes"}
+```
+$ curl -X POST http://localhost:2380/containers/7a3390449a27211b6d792d3ed74cd2fdba1d23fcf6925fe8540e38f647597f7a/stop
+<html><body><h1>403 Forbidden</h1>
+Request forbidden by administrative rules.
+</body></html>
+```
+{: file="Stop a Container"}
+
+</details>
 
 There are *many* docker socket proxy implementations that exist today, but the most popular ones are:
 
@@ -61,7 +110,9 @@ There are *many* docker socket proxy implementations that exist today, but the m
 
 The existing socket proxy implementations are great but they are still lacking more granular access controls, in my opinion.
 
-Consider our example from above where we want to get a list of containers with the label `my.cool.label=foo`: We can configure our socket proxy to allow only access to container endpoints but when Service A makes a request to [/containers/json](https://docs.docker.com/reference/api/engine/version/v1.48/#tag/Container/operation/ContainerList) it is still getting a response *with all the containers on the host*. Even though it may only need to be able to see 1 or 2 containers to do its job it can read data about all other 50+ containers. 
+Consider our example from above where we want to get a list of containers with the label `my.cool.label=foo`:
+
+We can configure our socket proxy to allow only access to container endpoints, but when Service A makes a request to [/containers/json](https://docs.docker.com/reference/api/engine/version/v1.48/#tag/Container/operation/ContainerList) it is still getting a response *with all the containers on the host*. Even though it may only need to be able to see 1 or 2 containers to do its job, it can read data about all other 50+ containers. 
 
 Additionally, Service A can still make any GET request for any container, even if it doesn't need them. Concerningly, the [Inspect a container endpoint](https://docs.docker.com/reference/api/engine/version/v1.48/#tag/Container/operation/ContainerInspect) returns all environmental variables for a container. What if those ENVs contain secrets and sensitive keys? It can also [Get containers logs](https://docs.docker.com/reference/api/engine/version/v1.48/#tag/Container/operation/ContainerLogs) for any container which may also contain sensitive data.
 
@@ -99,14 +150,14 @@ services:
       - DOCKER_HOST=192.168.0.101:2375
 ```
 
-**✅ Using socket proxy over isolated stack network**
+**✅ Using socket proxy inside an isolated stack network**
 
 ```yaml
 services:
   serviceA:
     image: myService
     environment:
-      # connecting over internal stack network
+      # connecting via internal stack network
       - DOCKER_HOST=docker-socket-proxy:2375
   docker-socket-proxy:
     image: tecnativa/docker-socket-proxy
@@ -115,7 +166,7 @@ services:
     environment:
      - POST=0
      - CONTAINERS=1
-    # no ports required since connection is over stack network
+    # no ports required since connection stay inside stack network
 ```
 
 </details>
@@ -126,7 +177,7 @@ This can be extended to remote hosts if you use [docker overlay networks](../mig
 
 To address the problem of exposing all containers I have created [**docker-proxy-filter**](https://github.com/FoxxMD/docker-proxy-filter) (DPF).
 
-DPF is an *additional* proxy that sits in front of your socket proxy and enables you to filter Docker API *responses* and *container specific routes* based on container names and labels. It is used exactly the same as other socket proxies, as far as your services are concerned.
+DPF is an *additional* proxy that sits in front of an *existing* [socket proxy](#restricting-docker-api-with-socket-proxy) and enables you to filter Docker API *responses* and *container specific routes* based on container names and labels. It is used exactly the same as a regular socket proxy, as far as your services are concerned.
 
 **Using filters with DPF changes [Docker API container routes](https://docs.docker.com/reference/api/engine/version/v1.48/#tag/Container) like so:**
 
@@ -135,11 +186,12 @@ DPF is an *additional* proxy that sits in front of your socket proxy and enables
 
 Now, in addition to the restrictions configured by your normal socket proxy, you can restrict the containers that are exposed by your socket-proxy.
 
-Going back to our initial example of
-
-> Service A wants to get a list of containers that have label `my.cool.label=foo`
-
-We can configure DPF to only expose containers that have that exact label. The List Containers endpoint now returns 2 containers instead of 50+. Calls to `/containers/{id}/json` return 404 if the container does not have our label attached. We're only exposing what is needed!
+> Going back to our initial example of
+>
+> > Service A wants to get a list of containers that have label `my.cool.label=foo`
+>
+> We can configure DPF to only expose containers that have that exact label. The List Containers endpoint now returns 2 containers instead of 50+. Calls to `/containers/{id}/json` return 404 if the container does not have our label attached. We're only exposing what is needed!
+{: .prompt-info }
 
 ## `docker-proxy-filter` Usage
 
@@ -170,7 +222,7 @@ Homepage uses the Docker API to:
 * Query the [List Containers](https://docs.docker.com/reference/api/engine/version/v1.48/#tag/Container/operation/ContainerList) (`/containers/json`) endpoint to find services by label.
 * Query the [Inspect Container](https://docs.docker.com/reference/api/engine/version/v1.48/#tag/Container/operation/ContainerInspect) (`/containers/{id}/json`) endpoint for service state, among other things.
 
-It does not need access to any other Docker API endpoints, and does not need access to any container that does not have a `homepage` label.
+It does not need access to any other Docker API endpoints, and does not need access to any container that does not have `homepage` in its label keys.
 
 We have Homepage deployed on **Server A** and we want it to discover services running on **Server B** at **192.168.0.101**.
 
