@@ -118,7 +118,9 @@ Additionally, Service A can still make any GET request for any container, even i
 
 While Service A may use the API as intended this won't stop an attacker from exploiting it or accessing your network from another vector. Anyone who can access the port of the socket proxy can read any data about any container. Not great!
 
-#### Mitigating Socket Proxy Access
+<details markdown=1>
+
+<summary>Mitigating Socket Proxy Access by running in the same Stack</summary>
 
 *Some* of the attack vectors mentioned above can be mitigated by restricting how a socket proxy is exposed. If the service that needs docker access is on the same host that needs to be accessed then the socket proxy can be created in the same stack as the service and communication can happen on the isolated stack network, rather than over the docker bridge.
 
@@ -172,6 +174,8 @@ services:
 </details>
 
 This can be extended to remote hosts if you use [docker overlay networks](../migrating-to-traefik#swarm-and-overlay) with Docker Swarm. However, this isn't possible if you don't have Swarm setup or there are other network factors that prevent overlay networks from working across hosts.
+
+</details>
 
 ## Restricting Docker API to Specific Containers
 
@@ -255,22 +259,18 @@ services:
     ports:
       - 2375:2375
   socket-proxy:
-    image: wollomatic/socket-proxy:1.10.0
-    restart: unless-stopped
-    user: 0:0
-    mem_limit: 64M
-    read_only: true
-    cap_drop:
-      - ALL
-    security_opt:
-      - no-new-privileges
-    command:
-      - '-loglevel=debug'
-      - '-listenip=0.0.0.0'
-      - '-allowfrom=proxy-container'
-      - '-allowGET=/(v1\..{1,2}/)?(containers).*'
+    image: lscr.io/linuxserver/socket-proxy:latest
+    environment:
+      - ALLOW_START=0
+      - ALLOW_STOP=0
+      - ALLOW_RESTARTS=0
+      - CONTAINERS=1
+      - INFO=0
+      - POST=0
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
+    ports:
+      - 2375:2375
 ```
 
 ##### Configure Homepage
