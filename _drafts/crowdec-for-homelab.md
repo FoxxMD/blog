@@ -195,19 +195,19 @@ The benchmark is dockerized with a script to automate running and reproduction: 
 
 **Raspberry Pi4**
 
-![pi4](assets/img/crowdsec_bench/plot_pi4.png)
+![pi4](assets/img/crowdsec/plot_pi4.png)
 
 **Raspberry Pi5**
 
-![pi5](assets/img/crowdsec_bench/plot_pi5.png)
+![pi5](assets/img/crowdsec/plot_pi5.png)
 
 **i5-6500T**
 
-![i5-6500T](assets/img/crowdsec_bench/plot_6500t.png)
+![i5-6500T](assets/img/crowdsec/plot_6500t.png)
 
 **i5-13400T**
 
-![i5-13400](assets/img/crowdsec_bench/plot_13400.png)
+![i5-13400](assets/img/crowdsec/plot_13400.png)
 
 </details>
 
@@ -254,24 +254,40 @@ The [blog post](https://www.crowdsec.net/blog/multi-server-setup) does a better 
 
 </details>
 
-## Architecture Overview
+## Crowdsec at Homelab Scale
 
-Architecture will be similar to https://docs.crowdsec.net/u/user_guides/multiserver_setup/
+Now, we'll take all the above context to design a Crowdsec implementataion for our contrived homelab that respects the heterogenous compute power of machines in our network.
 
-* Management instance (docker)
-  * located on most stable server
-  * potentially on VPS if any services also live there
-* Log Process instances (docker)
-  * Location based on 
-    * type of data source (docker containers can be tailed from anywhere)
-    * expected traffic load 
-  * Use centralized log processor on beefy machine for high load, docker data sources
-  * Use on-host log processor for low load or data sources that can't be tailed from docker
-  * Showcase load testing stack to determine log processor feasability
-  * Avoid log processor on same machine as Management unless lots of overhead
-* Bouncer on each point of ingress
-  * Use firewall if possible
-  * cloudflare tunnel fallback to reverse proxy bouncer
+### Scenario
+
+* You have four machines in your lab:
+  * **High Power Server (HPS)** that is the main "workhorse". It has the most memory and most compute.
+  * **Low Power Server 1 (LPS1)** is a rasberry pi 4. You use it to **SSH** into your lab remotely.
+    * It is the most stable machine because remote access needs to be available, always
+  * **Low Power Server 2 (LPS2)** is a rasberry pi 4. It runs a **reverse proxy** where all external traffic is routed from. The traffic comes in through a router, or otherwise *not* a tunnel.
+  * **Low Power Server 3 (LPS3)** is a mini pc. It runs **Nextcloud**, but not through the reverse proxy (for our contrived example). The traffic comes in through a router.
+* All of the externally accessible machines (LPS1-3)
+  * have firewalls
+  * You want to use crowdsec to protect these machines based on the activity they get from external traffic
+
+### Architecture
+
+![crowdsec diagram for our lab](assets/img/crowdsec/homelab-diagram-overview.png)
+
+* To prevent [compute-intensive log processing](#log-processing-is-compute-intensive) from occurring on LPS1/LPS2 we will use a "centralized" [log processor](#log-processor) on HPS to ingest logs from LPS1/LPS2 using [Docker](https://docs.crowdsec.net/docs/next/log_processor/data_sources/docker) [acquistion data sources](#log-processor).
+
+* SSH log volume is unlikely to be as high as web traffic, and its more difficult (but not impossible) to offload this to HPS, so we will process SSH using a separate log processor directly on LPS1.
+
+* LPS1 is our more stable machine so we will deploy our [CS Management Instance](#management-instance-lapi) here as well, so that it's more likely all other components will always be able to reach it.
+
+* On each LPS machine we will install a CS [Firewall](https://docs.crowdsec.net/u/bouncers/firewall) [Bouncer](#bouncers) that will talk to our Management Instance on LPS1.
+
+Using the above plan best takes advantage of what our homelab has to offer:
+
+* Log processing and Management are independent instances which makes our [system more reliable](#separate-components-make-everything-more-reliable).
+* Offloading log processing where possible avoids [bottlenecking](#log-processing-is-compute-intensive) the hosts running critical services, and takes advantage of the higher compute from our HPS machine.
+
+Additionally, connecting our Management Instance to the Central API (Crowdsec cloud) means we get access to the [community blocklist](https://docs.crowdsec.net/docs/next/central_api/community_blocklist/) to proactively block threats with our firewall bouncers.
 
 ## Implementation
 
