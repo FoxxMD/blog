@@ -28,7 +28,7 @@ The Docker Daemon running on your host machine communicates with programs using 
 
 Using this socket the Docker client, and any other program with access to `docker.sock`, can interact with any part of your Docker instance: start/stop container, create new containers, volumes, networks, get container logs and info, etc...
 
-> If you aren't familiar with unix sockets all you to know about communication through it is that it's essentially the same as making normal HTTP calls.
+> If you aren't familiar with unix sockets all you need to know about communication through it is that it's essentially the same as making normal HTTP calls.
 > 
 > For instance, to [get a list of all containers](https://docs.docker.com/reference/api/engine/version/v1.48/#tag/Container/operation/ContainerList) running on a host, a call to the Docker API would be:
 > 
