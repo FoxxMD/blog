@@ -190,7 +190,7 @@ Modify the `labels` for `backend` service from your Rybbit compose file, adding 
 
 ```yaml
 - "traefik.http.services.rybbit-ext.loadbalancer.server.port=3001"
-- "traefik.http.routers.rybbit-ext.rule=Host(`rybbit.myExtDomain.com`) && (Path(`/api/script.js`) || Path(`/api/replay.js`) || Path(`/api/track`) || PathPrefix(`/api/session-replay/record`))"
+- "traefik.http.routers.rybbit-ext.rule=Host(`rybbit.myExtDomain.com`) && (Path(`/api/script.js`) || Path(`/api/replay.js`) || Path(`/api/track`) || PathPrefix(`/api/session-replay/record`) || (PathPrefix(`/api/site`) && PathRegexp(`tracking-config`)))"
 - "traefik.http.routers.rybbit-ext.service=rybbit-ext"
 ```
 {: file="compose.yaml"}
@@ -210,7 +210,7 @@ http:
     rybbit-ext:
       #entryPoints: # may need to specify this
       #  - "websecure"
-      rule: "Host(`rybbit.myExtDomain.com`) && (Path(`/api/script.js`) || Path(`/api/replay.js`) || Path(`/api/track`) || PathPrefix(`/api/session-replay/record`))"
+      rule: "Host(`rybbit.myExtDomain.com`) && (Path(`/api/script.js`) || Path(`/api/replay.js`) || Path(`/api/track`) || PathPrefix(`/api/session-replay/record`) || (PathPrefix(`/api/site`) && PathRegexp(`tracking-config`)))"
       service: rybbit-ext
 
   services:
