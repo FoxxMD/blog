@@ -179,18 +179,25 @@ Right now Rybbit is only available on our **internal** domain. We need to add an
 
 The key with this route is that we only want [*specific paths*](https://doc.traefik.io/traefik/routing/routers/#path-pathprefix-and-pathregexp) to be accessible when Rybbit is accessed from our **external** domain. These routes are:
 
+GET
+
 * `/api/script.js`
 * `/api/replay.js`
+* `/api/site/[number]/tracking-config`
+
+POST/OPTIONS
+
 * `/api/track`
 * `/api/session-replay/record`
 
-We will use Traefik [Path and PathPrefix](https://doc.traefik.io/traefik/routing/routers/#path-pathprefix-and-pathregexp) rules with a [Host](https://doc.traefik.io/traefik/routing/routers/#host-and-hostregexp) rule to achieve this restriction. Additionally, these routes only need to be accessible to rybbit's `backend` service.
+
+We will use Traefik [Path, PathPrefix, and PathRegexp](https://doc.traefik.io/traefik/routing/routers/#path-pathprefix-and-pathregexp) rules with a [Host](https://doc.traefik.io/traefik/routing/routers/#host-and-hostregexp) rule and [Method](https://doc.traefik.io/traefik/routing/routers/#method) rule to achieve this restriction. Additionally, these routes only need to be accessible to rybbit's `backend` service.
 
 Modify the `labels` for `backend` service from your Rybbit compose file, adding these:
 
 ```yaml
 - "traefik.http.services.rybbit-ext.loadbalancer.server.port=3001"
-- "traefik.http.routers.rybbit-ext.rule=Host(`rybbit.myExtDomain.com`) && (Path(`/api/script.js`) || Path(`/api/replay.js`) || Path(`/api/track`) || PathPrefix(`/api/session-replay/record`) || (PathPrefix(`/api/site`) && PathRegexp(`tracking-config`)))"
+- "traefik.http.routers.rybbit-ext.rule=Host(`rybbit.myExtDomain.com`) && ((Method(`GET`) && (Path(`/api/script.js`) || Path(`/api/replay.js`) || PathRegexp(`^/api/site/[0-9]+/tracking-config`))) || ((Method(`POST`) || Method(`OPTIONS`)) && (Path(`/api/track`) || PathPrefix(`/api/session-replay/record`))))"
 - "traefik.http.routers.rybbit-ext.service=rybbit-ext"
 ```
 {: file="compose.yaml"}
@@ -210,7 +217,7 @@ http:
     rybbit-ext:
       #entryPoints: # may need to specify this
       #  - "websecure"
-      rule: "Host(`rybbit.myExtDomain.com`) && (Path(`/api/script.js`) || Path(`/api/replay.js`) || Path(`/api/track`) || PathPrefix(`/api/session-replay/record`) || (PathPrefix(`/api/site`) && PathRegexp(`tracking-config`)))"
+      rule: "Host(`rybbit.myExtDomain.com`) && ((Method(`GET`) && (Path(`/api/script.js`) || Path(`/api/replay.js`) || PathRegexp(`^/api/site/[0-9]+/tracking-config`))) || ((Method(`POST`) || Method(`OPTIONS`)) && (Path(`/api/track`) || PathPrefix(`/api/session-replay/record`))))"
       service: rybbit-ext
 
   services:
