@@ -269,8 +269,6 @@ services:
       - POST=0
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
-    ports:
-      - 2375:2375
 ```
 
 ##### Configure Homepage
