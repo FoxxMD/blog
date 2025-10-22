@@ -72,9 +72,6 @@ analytics:
     id: # fill in your Cloudflare Web Analytics token
   fathom:
     id: # fill in your Fathom Site ID
-  plausible:
-    id: blog.foxxmd.dev # fill in your Matomo ID
-    domain: https://insight.foxxmd.dev/js/script.hash.outbound-links.tagged-events.js # fill in your Matomo domain
   rybbit:
     id: 1
     domain: https://ry.foxxmd.dev/api/script.js
