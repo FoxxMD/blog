@@ -2,7 +2,8 @@
 
 source "https://rubygems.org"
 
-gem "jekyll-theme-chirpy", "~> 7.2", ">= 7.2.4"
+# pin version until https://github.com/cotes2020/jekyll-theme-chirpy/issues/2562 is fixed
+gem "jekyll-theme-chirpy", "7.3.1"
 
 gem "html-proofer", "~> 5.0", group: :test
 
