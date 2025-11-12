@@ -108,6 +108,6 @@ User-agent: DuckDuckBot
 User-agent: Googlebot
 User-agent: AdsBot-Google
 User-agent: Googlebot-Image
-Allow:
+Allow: /
 
 Sitemap: https://blog.foxxmd.dev/sitemap.xml
