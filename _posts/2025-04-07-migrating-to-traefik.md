@@ -40,9 +40,9 @@ As my homelab continues to grow I have gravitated towards each Stack owning its 
 
 #### SWAG is Tightly Coupled and Opinionated
 
-LSIO does an excellent job making setup with NGINX easy by using [SWAG](https://docs.linuxserver.io/general/swag/). For simple setups and users just dipping their toes into the space it's a fantastic tool for getting started quickly without requiring any hand-holding.
+LSIO does an excellent job making setup with NGINX easy by using [SWAG](https://docs.linuxserver.io/general/swag/). For simple setups and users just dipping their toes into the space it's a fantastic tool for getting started quickly without requiring any hand-holding. Even for more complex setup, [SWAG has a ton to offer](https://corelab.tech/swag-reverse-proxy-guide?ref=blog.foxxmd.dev) like authentication and array of convenience mods for common workflows.
 
-However, it has shortfalls which appear for more complex use-cases. Some of these are limitations of nginx, such as needing the user to [edit .ini files for DNS ACME challenge, while other solutions only need ENVs](#wildcards).
+However, it has shortfalls which immediately appear once you need to do something not specifically covered by the LSIO devs. Some of these are limitations of nginx, such as needing the user to [edit .ini files for DNS ACME challenge, while other solutions only need ENVs](#wildcards).
 
 Others are due to the reality of limited developer-hours needing to fulfill only the most common use-case, like LSIO's [cloudflare docker mod](https://github.com/linuxserver/docker-mods/tree/universal-cloudflared) configuration only working with one domain even though a tunnel can be used for multiple domains -- one domain is the most common use-case and easiest to script for. In this scenario, "fixing" the problem means refactoring the entire stack to remove universal-cloudflare and implementing your own `cloudflared` container.
 
