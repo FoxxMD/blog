@@ -15,6 +15,10 @@
   noblank: true
 # Uncomment and complete the url below to enable more contact options
 #
+- type: bluesky
+  icon: "fa-brands fa-bluesky"
+  url: "https://bsky.app/profile/foxxmd.dev" # Fill with your Bluesky profile link
+
 - type: mastodon
   icon: "fab fa-mastodon" # icons powered by <https://fontawesome.com/>
   url: "https://m.foxxmd.social/@FoxxMD" # Fill with your Mastodon account page, rel="me" will be applied for verification
@@ -27,9 +31,6 @@
 #   icon: 'fab fa-stack-overflow'
 #   url:  ''                  # Fill with your stackoverflow homepage
 #
-# - type: bluesky
-#   icon: 'fa-brands fa-bluesky'
-#   url: ''                   # Fill with your Bluesky profile link
 #
 # - type: reddit
 #   icon: 'fa-brands fa-reddit'
