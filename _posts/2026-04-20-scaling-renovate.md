@@ -384,7 +384,7 @@ The above screenshot reveals another issue. *What kind of update is this?* Minor
 
 Though some projects do a [good job](https://github.com/immich-app/immich/blob/f909648bce8cf181512f388072abb6d1141f8a23/docker/docker-compose.yml#L52) of pinning their dependencies to specific digests or patch versions, most do not. You'll often find projects that only specify a major version like `postgres:14` or `redis:8`.
 
-Usually, it's inferred by these projects that this version must stay the same. Even if the dependency can be updated to the next major version with breaking compatibility, the project may still depend on the version in their compose.yaml stack for some specific behavior.
+Usually, it's inferred by these projects that this version must stay the same. Even if the dependency can be updated to the next major version without breaking compatibility, the project may still depend on the version in their compose.yaml stack for some specific behavior.
 
 Additionally, many projects in the selfhosted community use the *same, known, common dependencies* in this style. Dependencies like databases, cache, and queues are common in projects found in the homelab. With the Renovate config given in Nick's guide, all of these dependencies get PRs to bump major/minor versions when we really do not want them. It adds a ton of noise and alarm fatigue to have to constantly close these.
 
@@ -408,7 +408,7 @@ Next, in your `renovate.json` add to the `docker-compose` object:
 {: file='docker-compose in renovate.json'}
 {% endraw %}
 
-and in the `docker-compose.packageRules` list **at the beginning** at the following entry:
+and in the `docker-compose.packageRules` list **at the beginning** add the following entry:
 
 {% raw %}
 ```json
@@ -426,7 +426,7 @@ and in the `docker-compose.packageRules` list **at the beginning** at the follow
 {: file='docker-compose.packageRules in renovate.json'}
 {% endraw %}
 
-This will modify PR titles, add labels new PRs, and include a searchable folder name in the PR body:
+This will modify PR titles, add labels to new PRs, and include a searchable folder name in the PR body:
 
 ![PRs with labels](assets/img/renovate/context.png)
 _PRs specify where compose file is located, from version, and version label_
@@ -530,7 +530,9 @@ If you have a *very large* homelab, say 50+ stacks or 70+ images total, you may 
 
 Dockerhub already has pretty restrictive rate limiting and quotas per day. Using a caching layer, especially if you end up pinning many images to digests, can help speed up Renovate's duration and drastically reduce calls to the registry and avoid rate limiting. This is especially useful when first creating your renovate config as you may be invoking Renovate many times to observe created PRs and iterating on your config.
 
-> If you don't want to go to the trouble of caching during initial renovate config iteration/setup then I would suggest creating a *testing* repository to have Renovate run on. Include only a few stacks with all the image update scenarios you want to detect and use that to iterate on config building, rather than using your entire homelab monorepo as the testing grounds.
+> If you don't want to go to the trouble of caching during initial renovate config iteration/setup then I would suggest creating a *testing*, toy monorepo repository to have Renovate run on. Include only a few stacks with all the image update scenarios you want to detect and use that to iterate on config building, rather than using your entire homelab monorepo as the testing grounds.
+>
+> In addition to avoiding caching this makes renovate action logs much easier to read through and speeds up the action duration.
 {: .prompt-tip}
 
 When Renovate is fetching updates it is making plain HTTP/S calls to the upstream registries[^no-docker-daemon-proxy] so we will use [CNCF's `distribution`](https://distribution.github.io/distribution/) image as a [pull through cache](https://distribution.github.io/distribution/recipes/mirror) in order to cache image manifest information from [each upstream registry](https://distribution.github.io/distribution/recipes/mirror/#gotcha) we want to cache for.
