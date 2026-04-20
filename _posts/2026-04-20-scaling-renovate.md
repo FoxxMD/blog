@@ -438,9 +438,9 @@ The `commitMessageExtra` property modifies our PRs titles so that they include
 
 and `addLabels` makes Renovate add a label with the version update type (`minor`). If you chose distinctive colors then it is now easy to see at a glance what type of version update is being proposed.
 
-#### Disable Updates for Common Dependencies
+#### Restrict Updates for Common Dependencies
 
-To fix [PR noise from common dependencies](#updates-for-common-dependencies-pinned-by-project) we can disable updates types based on package regex patterns. Add these two entries **at the end** of your `docker-compose.packageRules` list:
+To fix [PR noise from common dependencies](#updates-for-common-dependencies-pinned-by-project) we can restrict updates types based on package regex patterns. Add these two entries **at the end** of your `docker-compose.packageRules` list:
 
 ```json
 {
