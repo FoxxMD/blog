@@ -14,7 +14,7 @@ image:
 
 ## Intro
 
-If you are already in the [Komodo ecosystem](./migrating-to-komodo) you have probably run across across [Nick Cunningham's guide](https://nickcunningh.am/blog/how-to-automate-version-updates-for-your-self-hosted-docker-containers-with-gitea-renovate-and-komodo) on setting up [Renovate Bot](https://docs.renovatebot.com/) to manage docker image updates in your compose stacks.
+If you are already in the [Komodo ecosystem](../migrating-to-komodo) you have probably run across across [Nick Cunningham's guide](https://nickcunningh.am/blog/how-to-automate-version-updates-for-your-self-hosted-docker-containers-with-gitea-renovate-and-komodo) on setting up [Renovate Bot](https://docs.renovatebot.com/) to manage docker image updates in your compose stacks.
 
 Nick's guide is *excellent* for getting all the infrastructure set up for this scenario but stops a little short of providing an *exhaustive*, opinionated way of actually configuring Renovate to be used in your lab. Yes, it does [provide a renovate config](https://nickcunningh.am/blog/how-to-automate-version-updates-for-your-self-hosted-docker-containers-with-gitea-renovate-and-komodo#configure-renovate-in-the-repo) with a few rules that do work well for a trivial use case but this config becomes unwieldy quickly as the number of stacks in your repo grows.
 
@@ -24,9 +24,9 @@ This guide builds on top of Nick's fantastic starting point: **I present further
 
 If you aren't already familiar with the above topics or don't have everything set up you will need these pieces of infrastructure in place first (in this order):
 
-* [Komodo](./migrating-to-komodo) configured with [Stacks](./migrating-to-komodo#creating-stacks) utilizing [Git Repo(s)](./migrating-to-komodo#creating-stacks)
+* [Komodo](../migrating-to-komodo) configured with [Stacks](../migrating-to-komodo#creating-stacks) utilizing [Git Repo(s)](../migrating-to-komodo#creating-stacks)
   * Renovate will work best with the monorepo strategy described in the links above, but it's also useable with per-repo stacks if you want to do that.
-* Not *strictly* necessary but using Komodo, forgejo + webhooks, and the optional registry proxy-cache will be much easier if you have some kind of [reverse proxy](./migrating-to-traefik/) set up with all of these services tied into it. That will also require [DNS for the reverse proxy](./redundant-lan-dns), however you want to implement it.
+* Not *strictly* necessary but using Komodo, forgejo + webhooks, and the optional registry proxy-cache will be much easier if you have some kind of [reverse proxy](../migrating-to-traefik/) set up with all of these services tied into it. That will also require [DNS for the reverse proxy](../redundant-lan-dns), however you want to implement it.
   * This guide will assume you have this configured. If you do not then anywhere you see an example address like `https://subdomain.example.com` you'll need to substitute it for the respective `http://serviceHostIp:port` in your set up.
 * (Using Nick's guide) [Forgejo](https://nickcunningh.am/blog/how-to-setup-and-configure-forgejo-with-support-for-forgejo-actions-and-more), [Forgejo Actions](https://nickcunningh.am/blog/how-to-setup-and-configure-forgejo-with-support-for-forgejo-actions-and-more#setting-up-forgejo-actions), and [Renovate Bot as a repo connected to Actions](https://nickcunningh.am/blog/how-to-automate-version-updates-for-your-self-hosted-docker-containers-with-gitea-renovate-and-komodo#setting-up-renovate)
 
