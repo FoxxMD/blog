@@ -1,0 +1,357 @@
+---
+title: Renovate + Komodo - Updating at Scale in a Large Homelab
+description: >-
+  Renovate rules and Komodo actions for managing updates in a 50+ stack homelab
+author: FoxxMD
+categories: [Tutorial]
+tags: [docker, renovate, komodo]
+pin: false
+mermaid: false
+date: 2026-04-20 08:41:00 -0400
+---
+
+## Intro
+
+If you are already in the [Komodo ecosystem](./migrating-to-komodo) you have probably run across across [Nick Cunningham's guide](https://nickcunningh.am/blog/how-to-automate-version-updates-for-your-self-hosted-docker-containers-with-gitea-renovate-and-komodo) on setting up [Renovate Bot](https://docs.renovatebot.com/) to manage docker image updates in your compose stacks.
+
+Nick's guide is *excellent* for getting all the infrastructure set up for this scenario but stops a little short of providing an *exhaustive*, opinionated way of actually configuring Renovate to be used in your lab. Yes, it does [provide a renovate config](https://nickcunningh.am/blog/how-to-automate-version-updates-for-your-self-hosted-docker-containers-with-gitea-renovate-and-komodo#configure-renovate-in-the-repo) with a few rules that do work well for a trivial use case but this config becomes unwieldy quickly as the number of stacks in your repo grows.
+
+This guide builds on top of Nick's fantastic starting point: **I present further configuration for Renovate and Komodo that will help you keep the noise level low in a lab with 100+ compose stacks.**
+
+### Prerequisties
+
+If you aren't already familiar with the above topics or don't have everything set up you will need these pieces of infrastructure in place first (in this order):
+
+* [Komodo](./migrating-to-komodo) configured with [Stacks](./migrating-to-komodo#creating-stacks) utilizing [Git Repo(s)](./migrating-to-komodo#creating-stacks)
+  * Renovate will work best with the monorepo strategy described in the links above, but it's also useable with per-repo stacks if you want to do that.
+* Not *strictly* necessary but using Komodo, forgejo + webhooks, and the optional registry proxy-cache will be much easier if you have some kind of [reverse proxy](./migrating-to-traefik/) set up with all of these services tied into it. That will also require [DNS for the reverse proxy](./redundant-lan-dns), however you want to implement it.
+  * This guide will assume you have this configured. If you do not then anywhere you see an example address like `https://subdomain.example.com` you'll need to substitute it for the respective `http://serviceHostIp:port` in your set up.
+* (Using Nick's guide) [Forgejo](https://nickcunningh.am/blog/how-to-setup-and-configure-forgejo-with-support-for-forgejo-actions-and-more), [Forgejo Actions](https://nickcunningh.am/blog/how-to-setup-and-configure-forgejo-with-support-for-forgejo-actions-and-more#setting-up-forgejo-actions), and [Renovate Bot as a repo connected to Actions](https://nickcunningh.am/blog/how-to-automate-version-updates-for-your-self-hosted-docker-containers-with-gitea-renovate-and-komodo#setting-up-renovate)
+
+## Limiting Deployments on Komodo to Non-Critical Stacks
+
+Nick's guide uses Forgejo webhooks on your repository to trigger a [Komodo Procedure](https://nickcunningh.am/blog/how-to-automate-version-updates-for-your-self-hosted-docker-containers-with-gitea-renovate-and-komodo#create-a-procedure-in-komodo) to run. The Procedure is a `Batch Deploy Stack If Changed` action that targets *all* Stacks. There are two issues with this.
+
+### The Problem
+
+#### Forgejo Webhooks Triggers are Not Granular
+
+Forgejo webhooks can be enabled to trigger on *any* push to the repository or *any* PR state change (opened, closed, synchronized, etc...). From the UI you cannot control any other conditions on these types of triggers. What this means in practice is that:
+
+* You *cannot* only trigger on repo push events **only from the renovate bot**
+  * EX You make changes in Komodo to a stack and write the contents -> This commits to the repo (as your user) -> triggers webhook
+  * This is undesired! We only want webhooks triggered if we are merging commits from renovate bot, not just for any random change we make in Komodo
+* PR state changes cannot be specified
+  * EX You close a PR without merged -> triggered webhook
+  * We really only want to trigger if a PR is successfully merged, not for every single rebase, comment, etc...
+
+So even though our intent is to only have Forgejo trigger Komodo deployments when we merge a PR from Renovate Bot our Forgejo webhook triggers are too broad and there's nothing we can really do about it from the repo ui.
+
+#### Komodo Procedure can re-deploy Critical Infrastructure
+
+While the `Batch Deploy Stack If Changed` action *is smart enough* to only re-deploy stacks that have new image updates or have changes to their compose.yaml contents there are still many scenarios where we might not want this happen. Using the procedure config from Nick's guide, using `*` as a target, *every stack that has pending changes will be re-deployed*. That potentially includes:
+
+* the Forgejo instance
+* your reverse proxy
+* DNS
+* periphery containers
+* etc...
+
+These are stacks that we depend on to sucessfully deploy other stacks. You don't want Forgejo restarting while Komodo is trying to pull from it for a deployment somewhere else!
+
+While we can change the target of `Batch Deploy Stack If Changed`, it is *inclusive*. It's not feasible to specify every single stack that could be deployed as we'd have to update it every time we add a new Stack to Komodo. And once the number of stacks is non-trivial this becomes impractical.
+
+### The Solution
+
+We can address both of the above issues by writing our own [Komodo **Actions**](https://komo.do/docs/automate/procedures#actions) to
+
+1. **filter webhook triggers to only renovate bot and**
+2. **trigger a `Batch Deploy Stack If Changed` with targets based on Tags.**
+
+#### 1. Tag Critical Infra
+
+**Tags** are presented as a visual-organization tool in Komodo but they can be used for much more than that: Tags are surfaced as a property of all Komodo Resources when querying the API. We can therefore use these as a signal to *exclude* resources from being deployed.
+
+First, you'll need to tag the relevant resources, in the Komodo UI:
+
+* Create a new Tag
+  * **Settings** -> **Tags** -> click **+ New Tag** button
+  * Name the tag `critical-infa` -> **Create**
+* Tag your Stacks
+  * Open the **Stacks** page
+  * Find each Stack that you consider critical infrastructure and open the Details page for it
+    * Below the Stack title click on the plus (+) button next to **Tags** and add the tag you created above
+
+Nice! Now all your Stacks are tagged, we will use this in the Action created below.
+
+#### 2. Create `Batch Deploy If Changed Except` Action
+
+Create a new Komodo **Action** named `batch-deploy-changed-and-exclude` and copy-paste the contents of the (expanded) block below:
+
+<details markdown="1">
+
+<summary>Batch Deploy If Changed Except Contents</summary>
+
+```ts
+// add values to each filter to NOT re-deploy if stack contains X
+const REPOS = ARGS.REPOS === undefined ? [] : ARGS.REPOS.split(','); // Stack X Repo 'MyName/MyRepo' includes ANY part of string Y from list
+const SERVER_IDS = ARGS.SERVER_IDS === undefined ? [] : ARGS.SERVER_ID.split(','); // Stack X Server '67659da61af880a9d21f25be' matches string Y from list
+const TAGS = ARGS.TAGS === undefined ? [] : ARGS.TAGS.split(','); // Stack X Tags A,B,C like 'myCoolTag' matches string Y from list
+const STACKS = ARGS.STACKS === undefined ? [] : ARGS.STACKS.split(','); // Stack 'my-cool-stack' matches ANY part of string Y from list
+const SERVICES = ARGS.SERVICES === undefined ? [] : ARGS.SERVICES.split(','); // Stack X Service 'my-cool-service' includes ANY part of string Y from list
+const IMAGES = ARGS.IMAGES === undefined ? [] : ARGS.IMAGES.split(','); // Stack X Image 'lscr.io/linuxserver/socket-proxy:latest' includes ANY part of string Y from list
+
+// if ARGS.COMMIT is not present and `true` then this action will only "dry run" the changes
+// it will log to console what it *would* do but will not actually execute any changes
+const commit = ARGS.COMMIT === 'true';
+
+// used for getting common values found in two different lists
+const intersect = (a: Array<any>, b: Array<any>) => {
+    const setA = new Set(a);
+    const setB = new Set(b);
+    const intersection = new Set([...setA].filter(x => setB.has(x)));
+    return Array.from(intersection);
+}
+
+// formats stack names nicely in console out
+const formatColumns = (arr: string[], numCols: number) => {
+  if (!arr || arr.length === 0) return "";
+
+  // Calculate the width of each column (based on longest string in that column)
+  const colWidths = Array.from({ length: numCols }, (_, colIndex) => {
+    let maxWidth = 0;
+    for (let i = colIndex; i < arr.length; i += numCols) {
+      if (arr[i].length > maxWidth) maxWidth = arr[i].length;
+    }
+    return maxWidth;
+  });
+
+  // Build the output row by row
+  const rows = [];
+  for (let i = 0; i < arr.length; i += numCols) {
+    const rowItems = arr.slice(i, i + numCols);
+    const row = rowItems
+      .map((item, colIndex) => item.padEnd(colWidths[colIndex]))
+      .join("  "); // 2-space separator between columns
+    rows.push(row.trimEnd());
+  }
+
+  return rows.join("\n");
+}
+
+const availableUpdates = await komodo.read('ListStacks', {});
+
+let userTags: string[] = [];
+let tagsList: Types.ListTagsResponse;
+if(TAGS.length > 0) {
+  tagsList = await komodo.read('ListTags', {});
+  userTags = tagsList.filter(x => TAGS.includes(x.name)).map(x => x._id.$oid);
+}
+
+const excluded: string[] = [];
+
+const candidates = availableUpdates.filter(x => {
+  if(REPOS.length > 0 && REPOS.some(x => x.info.repo.includes(x))) {
+      excluded.push(`${x.name} => repo`);
+      return false;
+  }
+  if(SERVER_IDS.length > 0 && SERVER_IDS.includes(x.info.server_id)) {
+    excluded.push(`${x.name} => server`);
+    return false;
+  }
+  if(TAGS.length > 0 && intersect(userTags, x.tags).length > 0) {
+    const intersectedTags = intersect(userTags, x.tags);
+    excluded.push(`${x.name} => tags ${tagsList.filter(x => intersectedTags.includes(x._id.$oid)).map(x => x.name).join(',')}`);
+    return false;
+  }
+  if(STACKS.length > 0 && STACKS.some(y => x.name.includes(y))) {
+    excluded.push(`${x.name} => stack`);
+    return false;
+  }
+  if(SERVICES.length > 0) {
+    const s = x.info.services.map(x => x.service);
+    if(s.some(x => SERVICES.some(y => x.includes(y)))) {
+      excluded.push(`${x.name} => service`);
+      return false;
+    }
+  }
+  if(IMAGES.length > 0) {
+    const s = x.info.services.map(x => x.image);
+    if(s.some(x => IMAGES.includes(y => y.includes(s)))) {
+      excluded.push(`${x.name} => image`);
+      return false;
+    }
+  }
+  return true;
+});
+
+if(excluded.length > 0) {
+  console.log(`Excluded ${excluded.length} Stacks:\n${formatColumns(excluded, 3)}`);
+}
+
+console.log(`\n${commit === false ? '[DRY RUN] ' : ''}Will deploy ${candidates.length} if changed:
+${formatColumns(candidates.map(x => x.name), 3)}`);
+
+if(commit) {
+  await komodo.execute('BatchDeployStackIfChanged', {pattern: candidates.map(x => x.id).join(',')});
+}
+```
+{: file='Action File'}
+
+</details>
+
+In short, this Action:
+
+* Gets *all* Stacks on *all* Servers in your Komodo instance
+* Iterates through each one
+  * If the Stack has a property found in one of the lists of variables from the top of the file -- `REPOS`, `SERVER_IDS`, `TAGS`, `STACKS`, `SERVICES,` and `IMAGES` -- then it is **excluded** from the list of Stacks that may be deployed
+* At the end, all Stacks that *did not match* one of those properties is used as the target of a `BatchDeployStackIfChanged` API call
+  * Only if `ARGS.COMMIT = true`
+
+The top-of-file variables are parsed from **Arguments** which means they not hardcoded and can be passed by other actions/procedures/komodo api calls.
+
+So, this Action gives us a way to `Deploy Stack If Changed` where we can exclude all of our Stacks tagged with `critical-infra`.
+
+> This action is generic! We are using it in this scenario only for excluding by tags but you can use it for *anything* by using the other Arguments/Variables defined at the top.
+> 
+> EX You could also make a duplicate of the Action and change the api call executed from `BatchDeployStackIfChanged` to `StartAllContainers` to try to start all containers after restarting a server, but exclude ones with heavy IO.
+{: .prompt-tip}
+
+#### 3. Create Procedure to Batch Deploy and Exclude Critical Infra
+
+If you already created a [Batch Deploy Procedure using Nick's guide](https://nickcunningh.am/blog/how-to-automate-version-updates-for-your-self-hosted-docker-containers-with-gitea-renovate-and-komodo#create-a-procedure-in-komodo) you should modify it to match this one, now.
+
+Create a new Komodo **Procedure** named **Update On PR Merge** and add a new Stage, specifying the Action we just created `batch-deploy-changed-and-exclude`, with args for our critical infrastructure tag: `{ "TAGS": "critical-infra" }`
+
+![pr merge procedure](assets/img/renovate/procedure.png)
+
+**Save** the Procedure.
+
+> This could technically be achieved from our Forgejo Webhook Action by directly executing the `batch-deploy-changed-and-exclude` action with `komodo.execute` but I prefer to use a Procedure as it lets you easily expand/modify the behavior later to include other Stages/Actions.
+{: .prompt-info}
+
+#### 4. Create Forgejo-Webhook-Filtering Komodo Action
+
+Create a new Komodo **Action** named `Renovate Git Commit` and copy-paste the contents of the (expanded) block below:
+
+<details markdown="1">
+
+<summary>Batch Deploy If Changed Except Contents</summary>
+
+```ts
+// ARGS
+// RENOVATE_USER => username of the renovate bot
+// BASE_BRANCH => branch being merged into
+// PROCEDURE_ID => id of procedure to trigger
+// COMMIT => bool, whether to trigger procedure
+
+const body = ARGS.WEBHOOK_BODY;
+const commit = ARGS.COMMIT === 'true';
+
+const {
+  commits = []
+} = body;
+
+if(commits.length > 0) {
+  const {
+    ref,
+  } = body;
+
+  if(ARGS.RENOVATE_USER === undefined) {
+    throw new Error('RENOVATE_USER arg must be defined!');
+  }
+
+  if(ARGS.BASE_BRANCH !== undefined) {
+    if(!ref.includes(ARGS.BASE_BRANCH)) {
+      console.log(`Base Branch wanted '${ARGS.BASE_BRANCH} but found ${ref}, ignoring this webhook event.'`);
+      return;
+    }
+  } else {
+    console.log('No Base Branch check required.');
+  }
+
+  const renovateCommits = commits.filter(x => {
+    const {
+      author: {
+        username: authorUser
+      } = {},
+      committer: {
+        username: commitUser
+      } = {}
+    } = x;
+    return authorUser === ARGS.RENOVATE_USER || commitUser === ARGS.RENOVATE_USER;
+  });
+
+  if(renovateCommits.length === 0) {
+    console.log(`No commits by username ${ARGS.RENOVATE_USER}`);
+    return;
+  }
+
+  console.log(`Found ${renovateCommits.length} by username ${ARGS.RENOVATE_USER}:\n${renovateCommits.map(x => x.message).join('\n')}`);
+
+  const pid = ARGS.PROCEDURE_ID;
+  console.log(`${commit === false ? '[DRY RUN] ' : ''} Triggering procedure ${pid}`);
+  if(undefined === pid) {
+    throw new Error('Cannot trigger procedure because no ID was provided as arg PROCEDURE_ID');
+  }
+  if(commit) {
+    komodo.execute('RunProcedure', {procedure: pid});
+  }
+}
+```
+{: file='Action File'}
+
+</details>
+
+
+This Action:
+
+* Recieves a Forgejo Webhook event and parses the body
+* If it's a commit event (checks for `commits`)...
+  * Checks that at least one commit was made by the Renovate Bot
+  * and optionally checks it was committed to a specific branch (like `main`)
+* If all conditions are met and `ARGS.COMMIT === 'true'` then it executes a procedure based on passed argument value
+
+So, this Action filters all Forgejo Webhooks sent to it and only triggers a procedure if it contains a commit made by our Renovate Bot user.
+
+The top-of-file variables are parsed from **Arguments** which means they not hardcoded and can be passed by other actions/procedures/komodo api calls. However, you *should* set **Default Arguments** in this Action as it will be triggered directly by Forgejo (which cannot specifically pass Komodo Arguments). Under the Action File section, add/modify this contents to Arguments:
+
+```
+PROCEDURE_ID=69d54b1d82f3ae56abf97d88 # the procedure ID from step 3, get it from the procedure's page URL
+RENOVATE_USER=renovate-bot # the username of the renovate bot on your forgejo instance
+#BASE_BRANCH=main # uncomment this and specify branch to trigger only if commits are in this branch
+COMMIT=true
+```
+{: file='Arguments'}
+
+Make sure **Key Value** type is set from the Argument dropdown.
+
+Finally, we need to add this Action's webhook to Forgejo. This is the same step as in [Nick's guide](https://nickcunningh.am/blog/how-to-automate-version-updates-for-your-self-hosted-docker-containers-with-gitea-renovate-and-komodo#create-a-procedure-in-komodo):
+
+* At the bottom of the Action File...
+  * Enable **Webhook Enabled** and **Save**
+  * Copy the **Webhook URL - Run** value
+    * Make sure you know your Webhook Secret value as well
+* Open your Forgejo Repo -> Settings -> Webhooks
+  * Add new Webhook as *Gitea* style, use the URL value from above and add Komodo secret
+  * Enable for Custom Events...
+    * Check box for **Push**
+
+#### Summary
+
+Hooray! You've done it. To summarize the chain of events, now:
+
+* Renovate Bot makes a PR to your repo
+* You commit/merge the PR
+* Forgejo triggers the webhook because of the Push event
+  * This sends the commit event payload in the request to Komodo
+* Komodo Action `Renovate Git Commit` recieves the webhook body
+  * Checks that the at least one commit came from Renovate Bot and is to the right branch
+  * Executes Procedure from Step 3
+* Komodo Procedure executes `batch-deploy-changed-and-exclude` Action with arguments for `critical-infra` tag
+  * Komodo runs **Batch Deploy Stack If Changed** on all Stacks except those with the `critical-infra` tag
+
+So, we now:
+
+* avoid spamming Komodo Action webhook with any/all push/pr actions from our repo
+* only re-deploy changed Stacks that don't include the Stacks we potentially need to make the deployments happen in the first place
