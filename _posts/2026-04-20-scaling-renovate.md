@@ -355,3 +355,166 @@ So, we now:
 
 * avoid spamming Komodo Action webhook with any/all push/pr actions from our repo
 * only re-deploy changed Stacks that don't include the Stacks we potentially need to make the deployments happen in the first place
+
+## Reducing Renovate PR Noise
+
+Nick's guide [provides a good starting point](https://nickcunningh.am/blog/how-to-automate-version-updates-for-your-self-hosted-docker-containers-with-gitea-renovate-and-komodo#configure-renovate-in-the-repo) for renovate config by showing that some packages can be ignored or clamped based on version matching. However, any further config it left up to the reader. While his example is a good starting point the config as described is not sufficient to make good use of renovate bot for a non-trivial lab, like once you get past 20 stacks.
+
+### The Problem
+
+#### No Project Context
+
+The default PR/commit title template for Renovate only tells you the *image* that is being updated and to what version. This is fine when Renovate is being used in a single-project setting where there is maybe only one `compose.yaml` stack with a few images, but in the homelab monorepo where there can be many dozens of stack files this is not helpful at a glance:
+
+![no stack context](assets/img/renovate/nocontext.png)
+_What stack do each of these images belong to? What folder? Which project?_
+
+To get this context you need to 1) open the PR page and 2) switch to the Files Changed view. This is too many steps when you just want an at-a-glance view or are reviewing many opened PRs.
+
+#### No Version Bump Context
+
+The above screenshot reveals another issue. *What kind of update is this?* Minor? Major? Patch bump? The PR details page does describe this, but that means opening every single PR. Not useful for skimming new PRs to see what needs to be triaged.
+
+#### Updates for Common Dependencies Pinned by Project
+
+Though some projects do a [good job](https://github.com/immich-app/immich/blob/f909648bce8cf181512f388072abb6d1141f8a23/docker/docker-compose.yml#L52) of pinning their dependencies to specific digests or patch versions, most do not. You'll often find projects that only specify a major version like `postgres:14` or `redis:8`.
+
+Usually, it's inferred by these projects that this version must stay the same. Even if the dependency can be updated to the next major version with breaking compatibility, the project may still depend on the version in their compose.yaml stack for some specific behavior.
+
+Additionally, many projects in the selfhosted community use the *same, known, common dependencies* in this style. Dependencies like databases, cache, and queues are common in projects found in the homelab. With the Renovate config given in Nick's guide, all of these dependencies get PRs to bump major/minor versions when we really do not want them. It adds a ton of noise and alarm fatigue to have to constantly close these.
+
+### The Solution
+
+#### Better PR Titles and Labels
+
+First, in your repo create new labels for the different type of version updates, like this:
+
+![repo labels](assets/img/renovate/labels.png)
+_Version Update type labels added to the repo for PRs/Issues_
+
+Next, in your `renovate.json` add to the `docker-compose` object:
+
+{% raw %}
+```json
+"prBodyNotes": [
+  "Updates for stacks in `{{packageFileDir}}`."
+]
+```
+{: file='docker-compose in renovate.json'}
+{% endraw %}
+
+and in the `docker-compose.packageRules` list **at the beginning** at the following entry:
+
+{% raw %}
+```json
+{
+  "matchPackageNames": [
+    "/.*/"
+  ],
+  "addLabels": [
+    "{{updateType}}"
+  ],
+  "commitMessageExtra": "in stack {{packageFileDir}} from {{currentVersion}} to {{#if isPinDigest}}{{{newDigestShort}}}{{else}}{{#if isMajor}}{{prettyNewMajor}}{{else}}{{#if isSingleVersion}}{{prettyNewVersion}}{{else}}{{#if newValue}}{{{newValue}}}{{else}}{{{newDigestShort}}}{{/if}}{{/if}}{{/if}}{{/if}}",
+  "enabled": true
+}
+```
+{: file='docker-compose.packageRules in renovate.json'}
+{% endraw %}
+
+This will modify PR titles, add labels new PRs, and include a searchable folder name in the PR body:
+
+![PRs with labels](assets/img/renovate/context.png)
+_PRs specify where compose file is located, from version, and version label_
+
+The `commitMessageExtra` property modifies our PRs titles so that they include
+
+* the folder path to the `compose.yaml` where the image is located (`in stacks stack/karakeep`)
+* the current version of the image immediately proceeding the proposed version update (`from 1.6.2 to 1.42.1`)
+
+and `addLabels` makes Renovate add a label with the version update type (`minor`). If you chose distinctive colors then it is now easy to see at a glance what type of version update is being proposed.
+
+#### Disable Updates for Common Dependencies
+
+To fix [PR noise from common dependencies](#updates-for-common-dependencies-pinned-by-project) we can disable updates types based on package regex patterns. Add these two entries **at the end** of your `docker-compose.packageRules` list:
+
+```json
+{
+  "description": "Common images that may have breaking changes between any non-patch versions (will only open patch PRs)",
+  "matchPackageNames": [
+    "/influxdb/",
+    "/mysql/",
+    "/mongo/",
+    "/elasticsearch/",
+    "/keydb/",
+    "/rabbitmq/",
+    "/mariadb/",
+    "/etcd/"
+  ],
+  "matchUpdateTypes": [
+    "major",
+    "minor"
+  ],
+  "enabled": false
+}
+```
+{: file='docker-compose.packageRules in renovate.json'}
+
+```json
+{
+  "description": "Common images that may have breaking changes between major versions (will only open patch/minor PRs)",
+  "matchPackageNames": [
+    "/couchdb/",
+    "/redis/",
+    "/valkey/",
+    "/postgres/",
+    "/postgis/",
+    "/pgadmin/",
+    "/clickhouse/",
+    "/grafana/"
+  ],
+  "matchUpdateTypes": [
+    "major"
+  ],
+  "enabled": false
+}
+```
+{: file='docker-compose.packageRules in renovate.json'}
+
+This will ensure that PRs are only opened for these images if the version update is both backwards compatible and unlikely to break the main service's usage of the dependency. I assigned these by going to each depedency's website and verifying their version update policy, or defaulting to patch-only if no policy was found.
+
+> If you have specific versions of any of these you want to override per project then add another entry to `packageRules` **after** the above entries and use either [`matchPackageNames`](https://docs.renovatebot.com/configuration-options/#packagerulesmatchpackagenames) or [`matchFileNames`](https://docs.renovatebot.com/configuration-options/#packagerulesmatchfilenames) to match your specific scenario.
+{: .prompt-tip}
+
+#### (Optional) More Noise Reducton
+
+To further reduce PR noise you can add these other options to `renovate.json`:
+
+##### Major Dependency Approval
+
+Make sure [Dependency Dashboard](https://docs.renovatebot.com/key-concepts/dashboard/) is enabled at the top-level of your `renovate.json`
+
+Use [`dependencyDashboardApproval`](https://docs.renovatebot.com/key-concepts/dashboard/#require-approval-for-major-updates) to redirect all major version bumps to the dependency dashboard. This will make Renovate list the update in the dashboard *first*, where you can then enable it via checkbox to have Renovate create the PR for it the next time it is run. Add to `docker-compose` object:
+
+```json
+"major": {
+  "dependencyDashboardApproval": true
+}
+```
+{: file='renovate.json'}
+
+##### Minimum Release Age
+
+Use [`minimumReleaseAge`](https://docs.renovatebot.com/configuration-options/#minimumreleaseage) to also redirect PRs to the Dependency Dashboard. Setting a time value for this option means that all *unique* version updates that would become PRs are instead added to the Dashboard if the *last* digest update for that version is newer than Time X.
+
+EX `"minimumReleaseAge": "4 day"` means if the digest for `redis:9` was created less than 4 days ago then PR will be opened and instead it will be shown on the Dashboard as a Pending Update.
+
+Add add the top-level:
+
+```json
+"minimumReleaseAge": "4 day"
+```
+{: file='renovate.json'}
+
+##### Alpine Preset
+
+Add [`workarounds:doNotUpgradeFromAlpineStableToEdge`](https://docs.renovatebot.com/presets-workarounds/#workaroundsdonotupgradefromalpinestabletoedge) to the `renovate.json` `extends` list to prevent PRs that try to upgrade alpine images.
