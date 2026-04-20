@@ -480,7 +480,7 @@ To fix [PR noise from common dependencies](#updates-for-common-dependencies-pinn
 ```
 {: file='docker-compose.packageRules in renovate.json'}
 
-This will ensure that PRs are only opened for these images if the version update is both backwards compatible and unlikely to break the main service's usage of the dependency. I assigned these by going to each depedency's website and verifying their version update policy, or defaulting to patch-only if no policy was found.
+This will ensure that PRs are only opened for these images if the version update is both backwards compatible and unlikely to break the main service's usage of the dependency. I assigned these by going to each dependency's website and verifying their version update policy, or defaulting to patch-only if no policy was found.
 
 > If you have specific versions of any of these you want to override per project then add another entry to `packageRules` **after** the above entries and use either [`matchPackageNames`](https://docs.renovatebot.com/configuration-options/#packagerulesmatchpackagenames) or [`matchFileNames`](https://docs.renovatebot.com/configuration-options/#packagerulesmatchfilenames) to match your specific scenario.
 {: .prompt-tip}
@@ -508,7 +508,7 @@ Use [`minimumReleaseAge`](https://docs.renovatebot.com/configuration-options/#mi
 
 EX `"minimumReleaseAge": "4 day"` means if the digest for `redis:9` was created less than 4 days ago then PR will be opened and instead it will be shown on the Dashboard as a Pending Update.
 
-Add add the top-level:
+Add to the top-level:
 
 ```json
 "minimumReleaseAge": "4 day"
@@ -528,9 +528,9 @@ Dockerhub already has pretty restrictive rate limiting and quotas per day. Using
 > If you don't want to go to the trouble of caching during initial renovate config iteration/setup then I would suggest creating a *testing* repository to have Renovate run on. Include only a few stacks with all the image update scenarios you want to detect and use that to iterate on config building, rather than using your entire homelab monorepo as the testing grounds.
 {: .prompt-tip}
 
-When Renovate is fetching updates it is making plain HTTP/S calls to the upstream registries *and not* using the Docker Daemon API. Therefore, we can't use existing docker registry proxies transparently.
+When Renovate is fetching updates it is making plain HTTP/S calls to the upstream registries[^no-docker-daemon-proxy] so we will use [CNCF's `distribution`](https://distribution.github.io/distribution/) image as a [pull through cache](https://distribution.github.io/distribution/recipes/mirror) in order to cache image manifest information from [each upstream registry](https://distribution.github.io/distribution/recipes/mirror/#gotcha) we want to cache for.
 
-Instead, we will use [CNCF's `distribution`](https://distribution.github.io/distribution/) image as a [pull through cache](https://distribution.github.io/distribution/recipes/mirror) in order to cache image manifest information from [each upstream registry](https://distribution.github.io/distribution/recipes/mirror/#gotcha) we want to cache for.
+[^no-docker-daemon-proxy]: IE It will not use the Docker Daemon API so we can't use existing docker registry proxies transparently, unfortunately.
 
 In this example I am using `distribution` as a cache for Dockerhub and setting up the container behind Traefik as the reverse proxy. In a docker compose stack:
 
@@ -549,7 +549,7 @@ services:
       # URL to be used for dockerhub registry mirror
       traefik.http.routers.distribution-docker.rule: Host(`registry-docker.example.com`)
       traefik.http.services.distribution-docker.loadbalancer.server.port: 5000
-      traefik.docker.network: internal_overlay
+      traefik.docker.network: traefik_overlay
     environment:
       REGISTRY_PROXY_REMOTEURL: https://registry-1.docker.io # the upstream registry to cache
       REGISTRY_PROXY_USERNAME: foxxmd
@@ -581,7 +581,9 @@ Next, in `renovate.json` we add [`registryAliases`](https://docs.renovatebot.com
 
 EX: For `image: docker.io/library/redis:7` it should instead use `registry-docker.example.com/library.redis:7`
 
-Finally, we give an explicit hint to Renovate what the default registry is by configuring [`registryUrls`](https://docs.renovatebot.com/configuration-options/#registryurls). Without this config Renovate will still try to use `docker.io/...` when no registry prefix is present. The `registryAliases` config above only tells it what to do when the prefix is *explicitly* in the image.
+Finally, we give an explicit hint to Renovate what the default registry is by configuring [`registryUrls`](https://docs.renovatebot.com/configuration-options/#registryurls). Without this config Renovate will still try to use `docker.io/...` when no registry prefix is present.[^registryAliasExplicit]
+
+[^registryAliasExplicit]: The `registryAliases` config above only tells it what to do when the prefix is *explicitly* in the image.
 
 Add to **the beginning** of `packageRules`:
 
@@ -600,3 +602,159 @@ Add to **the beginning** of `packageRules`:
 > * Add an additional compose service for each registry
 > * Add a new mapping to `registryAliases`
 {: .prompt-tip}
+
+## Extras
+
+### Unlimited PRs
+
+![Unlimited Power](https://media2.giphy.com/media/v1.Y2lkPTc5MGI3NjExdXpqZ2dmeTA2Nm5ueHQ4a3Vpd3F3N2JpODQ2Y2R4bXlmZXFzaWVvciZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/hokMyu1PAKfJK/giphy-downsized.gif){: height="100" }
+
+To get Renovate to open all valid PRs (PRs not filtered by things like [major updates](#major-dependency-approval) or [minimum age](#minimum-release-age)) you need to add both `prHourlyLimit` *and* `prConcurrentLimit` to `renovate.json`:
+
+```json
+"prHourlyLimit": 0,
+"prConcurrentLimit": 0
+```
+{: file='top-level in renovate.json'}
+
+### Uncommon Version Pattern Detection
+
+Add the [`workarounds:bitnamiDockerImageVersioning`](https://docs.renovatebot.com/presets-workarounds/#workaroundsbitnamidockerimageversioning) preset to `extends` to help with versioning for bitnami images.
+
+[bpbradley](https://github.com/bpbradley) contributed this extremely useful version detection for [linuxserver.io](https://www.linuxserver.io/) images. Add to `packageRules`:
+
+```json
+{
+  "description": "Linuxserver tag parsing",
+  "versioning": "regex:^(?<compatibility>.*?)-(?<major>v?\\d+)\\.(?<minor>\\d+)\\.(?<patch>\\d+)[\\.-]*r?(?<build>\\d+)*-*r?(?<release>\\w+)*",
+  "matchPackageNames": [
+    "/^(ghcr.io\\/linuxserver\\/|lscr.io\\/linuxserver\\/).*/"
+  ]
+}
+```
+{: file='docker-compose.packageRules in renovate.json'}
+
+### Full Renovate Config
+
+This is the *full* `renovate.json` config I am using on my Komodo monorepo. It includes everything discussed in this post.
+
+**You will need to modify it for your repository before use** (things like `assignee` and updating/removing the [cache rules](#optional-reducing-registry-api-calls-with-caching)) but it can be used as a reference point.
+
+<details markdown="1">
+
+<summary>renovate.json</summary>
+
+{% raw %}
+```json
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended",
+    "workarounds:bitnamiDockerImageVersioning",
+    "workarounds:doNotUpgradeFromAlpineStableToEdge"
+  ],
+  "dependencyDashboard": true,
+  "dependencyDashboardTitle": "Renovate Dashboard",
+  "assignees": [
+    "foxxmd"
+  ],
+  "labels": [
+    "renovate"
+  ],
+  "configMigration": true,
+  "prHourlyLimit": 0,
+  "prConcurrentLimit": 0,
+  "minimumReleaseAge": "4 day",
+  "docker-compose": {
+    "major": {
+      "dependencyDashboardApproval": true
+    },
+    "pinDigests": true,
+    "vulnerabilityAlerts": {
+      "addLabels": [
+        "security"
+      ]
+    },
+    "hostRules": [
+      { "matchHost": "docker.io", "concurrentRequestLimit": 2 },
+      { "matchHost": "ghcr.io", "concurrentRequestLimit": 2 },
+      { "matchHost": "gcr.io", "concurrentRequestLimit": 2 },
+      { "matchHost": "lscr.io", "concurrentRequestLimit": 2 }
+    ],
+    "prBodyNotes": [
+      "Updates for stacks in `{{packageFileDir}}`."
+    ],
+    "registryAliases": {
+      "index.docker.io": "registry-docker.example.com",
+      "docker.io": "registry-docker.example.com"
+    },
+    "packageRules": [
+      {
+        "matchDatasources": ["docker"],
+        "registryUrls": [
+          "https://registry-docker.example.com"
+          ]
+      },
+      {
+        "matchPackageNames": [
+          "/.*/"
+        ],
+        "addLabels": [
+          "{{updateType}}"
+        ],
+        "commitMessageExtra": "in stack {{packageFileDir}} from {{currentVersion}} to {{#if isPinDigest}}{{{newDigestShort}}}{{else}}{{#if isMajor}}{{prettyNewMajor}}{{else}}{{#if isSingleVersion}}{{prettyNewVersion}}{{else}}{{#if newValue}}{{{newValue}}}{{else}}{{{newDigestShort}}}{{/if}}{{/if}}{{/if}}{{/if}}",
+        "enabled": true
+      },
+      {
+        "description": "Common images that may have breaking changes between any non-patch versions (will only open patch PRs)",
+        "matchPackageNames": [
+          "/influxdb/",
+          "/mysql/",
+          "/mongo/",
+          "/elasticsearch/",
+          "/keydb/",
+          "/rabbitmq/",
+          "/mariadb/",
+          "/etcd/"
+        ],
+        "matchUpdateTypes": [
+          "major",
+          "minor"
+        ],
+        "enabled": false
+      },
+      {
+        "description": "Common images that may have breaking changes between major versions (will only open patch/minor PRs)",
+        "matchPackageNames": [
+          "/couchdb/",
+          "/redis/",
+          "/valkey/",
+          "/postgres/",
+          "/postgis/",
+          "/pgadmin/",
+          "/clickhouse/",
+          "/grafana/"
+        ],
+        "matchUpdateTypes": [
+          "major"
+        ],
+        "enabled": false
+      },
+      {
+        "description": "Linuxserver tag parsing",
+        "versioning": "regex:^(?<compatibility>.*?)-(?<major>v?\\d+)\\.(?<minor>\\d+)\\.(?<patch>\\d+)[\\.-]*r?(?<build>\\d+)*-*r?(?<release>\\w+)*",
+        "matchPackageNames": [
+          "/^(ghcr.io\\/linuxserver\\/|lscr.io\\/linuxserver\\/).*/"
+        ]
+      }
+    ]
+  }
+}
+```
+{% endraw %}
+
+</details>
+
+___
+
+## Footnotes
