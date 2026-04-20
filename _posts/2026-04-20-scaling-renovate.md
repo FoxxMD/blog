@@ -518,3 +518,85 @@ Add add the top-level:
 ##### Alpine Preset
 
 Add [`workarounds:doNotUpgradeFromAlpineStableToEdge`](https://docs.renovatebot.com/presets-workarounds/#workaroundsdonotupgradefromalpinestabletoedge) to the `renovate.json` `extends` list to prevent PRs that try to upgrade alpine images.
+
+## (Optional) Reducing Registry API Calls with Caching
+
+If you have a *very large* homelab, say 50+ stacks or 70+ images total, you may want to consider adding a caching layer between Renovate and upstream registries.
+
+Dockerhub already has pretty restrictive rate limiting and quotas per day. Using a caching layer, especially if you end up pinning many images to digests, can help speed up Renovate's duration and drastically reduce calls to the registry and avoid rate limiting. This is especially useful when first creating your renovate config as you may be invoking Renovate many times to observe created PRs and iterating on your config.
+
+> If you don't want to go to the trouble of caching during initial renovate config iteration/setup then I would suggest creating a *testing* repository to have Renovate run on. Include only a few stacks with all the image update scenarios you want to detect and use that to iterate on config building, rather than using your entire homelab monorepo as the testing grounds.
+{: .prompt-tip}
+
+When Renovate is fetching updates it is making plain HTTP/S calls to the upstream registries *and not* using the Docker Daemon API. Therefore, we can't use existing docker registry proxies transparently.
+
+Instead, we will use [CNCF's `distribution`](https://distribution.github.io/distribution/) image as a [pull through cache](https://distribution.github.io/distribution/recipes/mirror) in order to cache image manifest information from [each upstream registry](https://distribution.github.io/distribution/recipes/mirror/#gotcha) we want to cache for.
+
+In this example I am using `distribution` as a cache for Dockerhub and setting up the container behind Traefik as the reverse proxy. In a docker compose stack:
+
+```yaml
+services:
+  dockerio-distribution-mirror:
+    image: distribution/distribution:latest
+    networks:
+      - traefik_overlay
+      - default
+    volumes:
+      # file store for cached data
+      - ./distribution-proxy/registries/dockerio:/var/lib/registry    
+    labels:
+      traefik.enable: true
+      # URL to be used for dockerhub registry mirror
+      traefik.http.routers.distribution-docker.rule: Host(`registry-docker.example.com`)
+      traefik.http.services.distribution-docker.loadbalancer.server.port: 5000
+      traefik.docker.network: internal_overlay
+    environment:
+      REGISTRY_PROXY_REMOTEURL: https://registry-1.docker.io # the upstream registry to cache
+      REGISTRY_PROXY_USERNAME: foxxmd
+      REGISTRY_PROXY_PASSWORD: ${DOCKERHUB_PASSWORD}
+      REGISTRY_PROXY_TTL: 12h # how long to cache manifests for
+      REGISTRY_TAGS_MAXTAGS: 10000 # REQUIRED for use with renovatebot
+
+      # valkey service and config below is optional
+      REGISTRY_REDIS_ADDRS: "[distribution-valkey:6379]"
+      REGISTRY_STORAGE_DELETE_ENABLED: true
+      REGISTRY_STORAGE_CACHE_BLOBDESCRIPTOR: redis
+  distribution-valkey:
+    image: valkey/valkey:9.0.3
+    networks:
+      - default
+    volumes:
+      - ./distribution-proxy/redis:/data
+```      
+
+Next, in `renovate.json` we add [`registryAliases`](https://docs.renovatebot.com/configuration-options/#registryaliases) to `docker-compose` to tell Renovate that when it sees the `docker.io` registry in an image it should instead use our mirror:
+
+```json
+"registryAliases": {
+  "index.docker.io": "registry-docker.example.com",
+  "docker.io": "registry-docker.example.com"
+}
+```
+{: file='docker-compose in renovate.json'}
+
+EX: For `image: docker.io/library/redis:7` it should instead use `registry-docker.example.com/library.redis:7`
+
+Finally, we give an explicit hint to Renovate what the default registry is by configuring [`registryUrls`](https://docs.renovatebot.com/configuration-options/#registryurls). Without this config Renovate will still try to use `docker.io/...` when no registry prefix is present. The `registryAliases` config above only tells it what to do when the prefix is *explicitly* in the image.
+
+Add to **the beginning** of `packageRules`:
+
+```json
+{
+  "matchDatasources": ["docker"],
+  "registryUrls": [
+    "https://registry-docker.example.com"
+    ]
+}
+```
+{: file='docker-compose.packageRules in renovate.json'}
+
+> To cache for more registries you will need to:
+>
+> * Add an additional compose service for each registry
+> * Add a new mapping to `registryAliases`
+{: .prompt-tip}
