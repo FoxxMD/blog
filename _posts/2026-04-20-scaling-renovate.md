@@ -84,6 +84,9 @@ First, you'll need to tag the relevant resources, in the Komodo UI:
   * Find each Stack that you consider critical infrastructure and open the Details page for it
     * Below the Stack title click on the plus (+) button next to **Tags** and add the tag you created above
 
+![tagged komodo stacks](assets/img/renovate/stack-tags.png)
+_Komodo Stacks tagged with `critical-infra`_
+
 Nice! Now all your Stacks are tagged, we will use this in the Action created below.
 
 #### 2. Create `Batch Deploy If Changed Except` Action
