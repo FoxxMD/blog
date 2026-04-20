@@ -544,6 +544,10 @@ In this example I am using `distribution` as a cache for Dockerhub and setting u
 ```yaml
 services:
   dockerio-distribution-mirror:
+    # may need to use distribution/distribution:edge@sha256:d9fb44957a42f4413c13e01c3bcba7036a875057ee201207c4324e74ca84e2e5
+    # until >= distribution:3.1.1 is released due to needing these PRs
+    # https://github.com/distribution/distribution/pull/4846
+    # https://github.com/distribution/distribution/pull/4856
     image: distribution/distribution:latest
     networks:
       - traefik_overlay
