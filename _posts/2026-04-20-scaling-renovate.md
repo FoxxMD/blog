@@ -36,9 +36,9 @@ Nick's guide uses Forgejo webhooks on your repository to trigger a [Komodo Proce
 
 ### The Problem
 
-#### Forgejo Webhooks Triggers are Not Granular
+#### Forgejo Webhook Triggers are Not Granular
 
-Forgejo webhooks can be enabled to trigger on *any* push to the repository or *any* PR state change (opened, closed, synchronized, etc...). From the UI you cannot control any other conditions on these types of triggers. What this means in practice is that:
+Forgejo webhooks can be enabled to trigger on *all* push to the repository or *all* PR state change (opened, closed, synchronized, etc...). From the UI you cannot control any other conditions on these types of triggers. What this means in practice is that:
 
 * You *cannot* only trigger on repo push events **only from the renovate bot**
   * EX You make changes in Komodo to a stack and write the contents -> This commits to the repo (as your user) -> triggers webhook
