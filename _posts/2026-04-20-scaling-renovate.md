@@ -4,10 +4,12 @@ description: >-
   Renovate rules and Komodo actions for managing updates in a 50+ stack homelab
 author: FoxxMD
 categories: [Tutorial]
-tags: [docker, renovate, komodo]
+tags: [docker, renovate, komodo, git, forgejo, cache, registry]
 pin: false
 mermaid: false
 date: 2026-04-20 08:41:00 -0400
+image:
+  path: /assets/img/renovate/context.webp
 ---
 
 ## Intro
@@ -18,7 +20,7 @@ Nick's guide is *excellent* for getting all the infrastructure set up for this s
 
 This guide builds on top of Nick's fantastic starting point: **I present further configuration for Renovate and Komodo that will help you keep the noise level low in a lab with 100+ compose stacks.**
 
-### Prerequisties
+### Prerequisite
 
 If you aren't already familiar with the above topics or don't have everything set up you will need these pieces of infrastructure in place first (in this order):
 
@@ -57,7 +59,7 @@ While the `Batch Deploy Stack If Changed` action *is smart enough* to only re-de
 * periphery containers
 * etc...
 
-These are stacks that we depend on to sucessfully deploy other stacks. You don't want Forgejo restarting while Komodo is trying to pull from it for a deployment somewhere else!
+These are stacks that we depend on to successfully deploy other stacks. You don't want Forgejo restarting while Komodo is trying to pull from it for a deployment somewhere else!
 
 While we can change the target of `Batch Deploy Stack If Changed`, it is *inclusive*. It's not feasible to specify every single stack that could be deployed as we'd have to update it every time we add a new Stack to Komodo. And once the number of stacks is non-trivial this becomes impractical.
 
@@ -306,7 +308,7 @@ if(commits.length > 0) {
 
 This Action:
 
-* Recieves a Forgejo Webhook event and parses the body
+* Receives a Forgejo Webhook event and parses the body
 * If it's a commit event (checks for `commits`)...
   * Checks that at least one commit was made by the Renovate Bot
   * and optionally checks it was committed to a specific branch (like `main`)
@@ -345,7 +347,7 @@ Hooray! You've done it. To summarize the chain of events, now:
 * You commit/merge the PR
 * Forgejo triggers the webhook because of the Push event
   * This sends the commit event payload in the request to Komodo
-* Komodo Action `Renovate Git Commit` recieves the webhook body
+* Komodo Action `Renovate Git Commit` receives the webhook body
   * Checks that the at least one commit came from Renovate Bot and is to the right branch
   * Executes Procedure from Step 3
 * Komodo Procedure executes `batch-deploy-changed-and-exclude` Action with arguments for `critical-infra` tag
@@ -485,7 +487,7 @@ This will ensure that PRs are only opened for these images if the version update
 > If you have specific versions of any of these you want to override per project then add another entry to `packageRules` **after** the above entries and use either [`matchPackageNames`](https://docs.renovatebot.com/configuration-options/#packagerulesmatchpackagenames) or [`matchFileNames`](https://docs.renovatebot.com/configuration-options/#packagerulesmatchfilenames) to match your specific scenario.
 {: .prompt-tip}
 
-#### (Optional) More Noise Reducton
+#### (Optional) More Noise Reduction
 
 To further reduce PR noise you can add these other options to `renovate.json`:
 
