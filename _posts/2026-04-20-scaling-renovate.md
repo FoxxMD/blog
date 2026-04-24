@@ -241,7 +241,7 @@ Create a new Komodo **Action** named `Renovate Git Commit` and copy-paste the co
 
 <details markdown="1">
 
-<summary>Batch Deploy If Changed Except Contents</summary>
+<summary>Renovate Git Commit Action Content</summary>
 
 ```ts
 // ARGS
