@@ -226,14 +226,24 @@ So, this Action gives us a way to `Deploy Stack If Changed` where we can exclude
 
 If you already created a [Batch Deploy Procedure using Nick's guide](https://nickcunningh.am/blog/how-to-automate-version-updates-for-your-self-hosted-docker-containers-with-gitea-renovate-and-komodo#create-a-procedure-in-komodo) you should modify it to match this one, now.
 
-Create a new Komodo **Procedure** named **Update On PR Merge** and add a new Stage, specifying the Action we just created `batch-deploy-changed-and-exclude`, with args for our critical infrastructure tag: `{ "TAGS": "critical-infra" }`
+Create a new Komodo **Procedure**[^actionInsteadOfProcedure] named **Update On PR Merge** and add a new Stage, specifying the Action we just created `batch-deploy-changed-and-exclude`, with args for our critical infrastructure tag:
+
+```
+{ "TAGS": "critical-infra" }
+```
 
 ![pr merge procedure](assets/img/renovate/procedure.png)
 
-**Save** the Procedure.
+Then, **Save** the Procedure.
 
-> This could technically be achieved from our Forgejo Webhook Action by directly executing the `batch-deploy-changed-and-exclude` action with `komodo.execute` but I prefer to use a Procedure as it lets you easily expand/modify the behavior later to include other Stages/Actions.
-{: .prompt-info}
+> The Procedure **will not deploy** anything until you add `"COMMIT": true` to the action's arguments via the procedure.
+> 
+> You should finish setting up this guide, test the entire workflow, and verify the output of `batch-deploy-changed-and-exclude` looks correct to you before enabling execution with the `COMMIT` arg.
+>
+> When you are ready, set the args to: `{ "TAGS": "critical-infra", "COMMIT": true }`
+{: .prompt-warning}
+
+[^actionInsteadOfProcedure]: This could technically be achieved from our Forgejo Webhook Action by directly executing the `batch-deploy-changed-and-exclude` action with `komodo.execute` but I prefer to use a Procedure as it lets you easily expand/modify the behavior later to include other Stages/Actions.
 
 #### 4. Create Forgejo-Webhook-Filtering Komodo Action
 
