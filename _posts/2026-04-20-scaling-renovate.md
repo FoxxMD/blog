@@ -108,7 +108,7 @@ const IMAGES = ARGS.IMAGES === undefined ? [] : ARGS.IMAGES.split(','); // Stack
 
 // if ARGS.COMMIT is not present and `true` then this action will only "dry run" the changes
 // it will log to console what it *would* do but will not actually execute any changes
-const commit = ARGS.COMMIT === 'true';
+const commit = ARGS.COMMIT === 'true' || ARGS.COMMIT === true;
 
 // used for getting common values found in two different lists
 const intersect = (a: Array<any>, b: Array<any>) => {
@@ -251,7 +251,7 @@ Create a new Komodo **Action** named `Renovate Git Commit` and copy-paste the co
 // COMMIT => bool, whether to trigger procedure
 
 const body = ARGS.WEBHOOK_BODY;
-const commit = ARGS.COMMIT === 'true';
+const commit = ARGS.COMMIT === 'true' || ARGS.COMMIT === true;
 
 const {
   commits = []
