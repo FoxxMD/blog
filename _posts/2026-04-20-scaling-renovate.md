@@ -198,7 +198,7 @@ console.log(`\n${commit === false ? '[DRY RUN] ' : ''}Will deploy ${candidates.l
 ${formatColumns(candidates.map(x => x.name), 3)}`);
 
 if(commit) {
-  await komodo.execute('BatchDeployStackIfChanged', {pattern: candidates.map(x => x.id).join(',')});
+  await komodo.execute('BatchDeployStackIfChanged', {pattern: candidates.map(x => x.name).join(',')});
 }
 ```
 {: file='Action File'}
