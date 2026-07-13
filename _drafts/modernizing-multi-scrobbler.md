@@ -419,3 +419,84 @@ A benefit of libraries like ant is that they are *exhaustive* and will have impl
 At the same time, I was wary about diving in to something like [shadcn](https://ui.shadcn.com/) because I did not want to be responsible for every single component and how they are all composed. I know headless ui libraries are *so hot right now* but it seemed like too much work for my scope, where I wanted to create an implementation with a modicum of flexibility but that wouldn't need to be fully bespoke. Remember, [if Multi-Scrobbler is working as intended you shouldn't need to use the web UI at all.](#why-fix-what-isnt-broken) I didn't want to spend a ton of time creating a UI where the ideal usecase is that a user looks at it for 2 minutes for the entire lifetime of the app.
 
 After much hand-wringing and tinkering in different doc playgrounds, I finally settled on [Chakra UI](https://www.chakra-ui.com/). Chakra strikes a good balance, for me, between allowing users to compose components and providing an opinionated framework. It is built on [Ark UI](https://ark-ui.com/), a headless ui library like shadcn, but provides a batteries-included UI/UX experience that can be tailored when needed.
+
+### Timeline Trial By Fire
+
+With tooling for frontend decided and a library chosen the next step was start implementing the design.
+
+I decided to start with the hardest, and more important, element of the design: the [Play Timeline](#play-timeline). This is the linchpin of all the user stories and planning I had done so if Chakra couldn't handle this then it wasn't up to the job for the rest of the app.
+
+From sketch:
+
+![sketch rough](assets/img/msupdate/timeline-rough-sketch.jpg){: width="300" .normal}
+![sketch detailed](assets/img/msupdate/timeline-detailed-sketch.jpg){: width="300" .normal}
+
+To implementation:
+
+![implementation1](assets/img/msupdate/ms-timeline.png){: width="300" .normal}
+![implementation-error](assets/img/msupdate/ms-mbemptyquery.png){: width="300" .normal}
+
+This worked out quite well! Transform steps are a nested timeline within the main Play events timeline. For both, using [`@pierre/diffs`](https://github.com/pierrecomputer/pierre) to visualize line-by-line differences and [`json-diff-ts`](https://github.com/ltwlf/json-diff-ts) to apply changes between steps in order to visualize the final rendered gives users a clear display of how their scrobble data changes over time.
+
+After trialing the timeline, the rest of the redesign *mostly* fell in to place with much iteration and more feedback from my design friend.
+
+### Landing Page
+
+The landing page retained some of its old look, with summaries of Source/Client being listed in a *now* responsive design that is friendly for both mobile and desktop.
+
+![old dashboard](assets/img/msupdate/old-dashboard.jpg){: width="600" }
+_old landing_
+![new dashboard](assets/img/msupdate/ms-componentlist.png){: width="600" }
+_new landing on mobile_
+![new dashboard desktop](assets/img/msupdate/ms-componentlistdesktop.png){: width="800" }
+_new landing on desktop_
+![live indicators](assets/img/msupdate/ms-liveupdates.png)
+_real time update indicators_
+
+Critically, though, all of the actions from the old landing are gone, as well as the logs. One of the lessons learned from my design friend was the concept of [**progressive disclosure**](https://en.wikipedia.org/wiki/Progressive_disclosure): only present the information that is required for the current task a user is doing.
+
+The old landing displayed summaries, logs, and actions all together without any thought for what the user would need to be doing. This meant that the page (Source/Client cards) were cramped and full of potentially unneeded information.
+
+Now, the new landing page presents the user with a way to quickly see only relevant summary information (state of Source/Client, live update indicators) with the option to navigate to a new screen that presents more detailed information and actions *for only the component they care about*.
+
+
+####Logs
+
+The Logs UX is another implementation of progressive disclosure. Most users don't immediately need Logs to be accessible as they present noisy data that is largely only useful for troubleshooting purposes.
+
+In the old UI logs were always visible at the bottom of the landing page. They were not (and still aren't really) mobile-friendly but were there, regardless.
+
+Now, they are accessible through a button in the header and present as a floating window that can be accessed *from anywhere in the app*. Logs are now *more* accessible but also *less intrusive*. If a user knows they want them, they are there when they need them. Otherwise, they'll never be in the way.
+
+![app header](assets/img/msupdate/ms-header.png)
+_Logs "terminal" button always visible in the header_
+
+![logs](assets/img/msupdate/ms-logs.jpg){: width="800" }
+_Float Logs window_
+
+### Source/Client Details
+
+There was no details page to compare from the old ui, so here is the new ui presented without context:
+
+![source client details](assets/img/msupdate/ms-componentdetailed.png)
+_The details page for a Spotify Source_
+
+More progressive disclosure here: Instead of displaying all possible actions for a Source/Client (restart, stop, authenticate, etc...), a primary (common) action is displayed contextually next to the current state of the component (`Running` -> `Power Off button`). A menu button allows choosing a secondary action.
+
+### Play Lists
+
+In the old UI the Plays for a Source/Client were on different pages separated by type (scrobbled, failed).
+
+![old recently played](assets/img/msupdate/old-recentlyplayed.jpg){: width="700" }
+_Recently played Plays on a Source in the old UI_
+
+Now, all associated Plays are unified into a single view with the type of Play represented by a colorful state badge. The type of Play can be filtered, along with time played at, and other attributes, in a virtual list with infinite loading for easier navigation on mobile.
+
+This gives users a cognitively easy way to check on any specific Play, or EX see only problematic Plays by filtering by Failed, without having to leave the current view.
+
+![plays list](assets/img/msupdate/ms-playlist.jpg){: width="700" }
+_Filtering by failed scrobbles_
+
+### Play Details
+
+Once again, progressive disclosure reveals only the required information to make a decision without overwhelming the user. 
