@@ -278,7 +278,11 @@ Then, [I tried out pglite](https://github.com/FoxxMD/multi-scrobbler/pull/593) a
 
 However, the memory usage with pglite was [3-4x](https://github.com/FoxxMD/multi-scrobbler/pull/588#issuecomment-4431828405) higher than the same scenarios with sqlite due to (obviously) needing to embed the entire pglite engine in memory. If MS was a much more sophisticated application that took full advantage (or needed) many of the extensions to operate this cost could have be justified, but it does not need them and so, sadly, pglite was off the table. 
 
-**Thus, I settled on sqlite as the backing database for MS.** Let me set the record straight, though, sqlite is no slouch: its performance is above and beyond what is required by MS, even when handling 10's of thousands of Plays.
+**Thus, I settled on sqlite as the backing database for MS.**
+
+Let me set the record straight, though, sqlite is no slouch: its performance is above and beyond what is required by MS, even when handling 10's of thousands of Plays. This is bolstered by the fact that Koito, a scrobble server I actually use, [migrated *from* postgres *to* sqlite.](https://github.com/gabehf/Koito/releases/tag/v0.1.8) Clearly, if it's good enough for Koito it's good enough for MS.
+
+![sqlite bird](assets/img/msupdate/sqlite.png){: width="500" }
 
 ### Syncing Source-of-Truth Entities
 
@@ -353,3 +357,26 @@ if(nextQueued !== undefined) {
 ```
 
 This replaces the in-memory queue "list" entirely and makes it so our queue length no longer affects memory consumed.
+
+![have you tried tables](assets/img/msupdate/queue_table.png){: width="500" }
+
+### Data Retention
+
+As mentioned in the [section on Play serialization](#play-serialization), I am very intentionally *not* trying to position MS as a full scrobble server replacement. There are many excellent services that do this much better than MS, like [Koito](https://koito.io/) and [Listenbrainz](https://listenbrainz.org/), and more radically different implementation like [teal.fm](https://docs.multi-scrobbler.app/configuration/clients/tealfm/) that MS could never be a substitute for.
+
+This intentional design choice means compromises can be made in how data is stored that allow more development convenience at the expense of on-disk data usage. However, a decision still needed to be made about how to address this data retention in order to prevent storing data indefinitely.
+
+I decided to implement a two-tier retention policy that strikes a balance between space reclamation and usefulness for troubleshooting issues.
+
+Both policies are set using simple, user-friendly time intervals strings like `50 minutes` or `7 days`.
+
+The first policy is **compaction**. This policy deletes associated debug data like original input payload, transform step diffs and inputs, and duplicate matching breakdowns. This is the data you would want if you were troubleshooting while a Play didn't behave the way you expect, but it's not essential for just viewing that a scrobble happened with basic timeline events.
+
+The second policy is **deletion**. This is a full deletion of the Play and all associated data.
+
+Together, these policies allow a lenient way to reclaim space without sacrificing troubleshooting for immediate issues EX:
+
+* compact after `5 days` => you have 5 days to check spot check all Plays to see that activity is working as expected. If not, make a copy of the debug data for creating a github issue
+* delete after `2 weeks` => you have 2 weeks to see all history with basic timeline events and essential scrobble data like title/artist/album etc...
+
+ To keep MS aggressive on space use in the worst-case scenario I defaulted these policies to `3 days` compaction and `7 days` deletion. But these can be updated by the user with simple ENV or file configuration globally or per Source/Client.
