@@ -37,7 +37,7 @@ Fast-forward 6 years. MS has gained a steady following among the niche audience 
 
 Needless to say, MS has far outgrown the design assumptions I made for it 6 years ago!
 
-## Neglected Frontend
+### Neglected Frontend
 
 Of the features listed above, the web dashboard was one of the [first features added](https://github.com/FoxxMD/multi-scrobbler/releases/tag/0.3.6) and has also been the least updated. Since it's inception the *design* has barely changed, despite being ported from expressjs templates to basic react + tailwind.
 
@@ -232,3 +232,124 @@ function transformAndUpdate(scrobble) {
 **The core design of MS would not need to be altered drastically but the database implementation would touch almost every part of the existing code.** And all of this would need to be done *before* UI could be wired into the backend.
 
 **The true cost of this redesign was *huge*. Not insurmountable or extremely cognitively difficult, but *wide* in its scope and implementation.**
+
+## Implementation Part One: Backend
+
+### Choosing a Database
+
+Database choice actually began with researching ORMs for typescript. Though MS could be pulled off with pure SQL there are enough relationships between Source/Client, Plays, duplicates, etc... that not having to manage all of these joins manually was a priority on my list.
+
+I have used [TypeORM](https://github.com/typeorm/typeorm) in the past and it was *fine* but I was looking for something that was moving a little faster and didn't require decorators.
+
+I experimented with [Kysely](https://www.kysely.dev/) for a while but that lack of stronger ORMs capabilities eventually steered me away. Eventually, I settled on [Drizzle](https://orm.drizzle.team/) for a few reasons:
+
+* [lack of dependencies](https://orm.drizzle.team/docs/overview#headless-orm)
+* unopinionated design with regard to entity configuration
+* transparent [data type](https://orm.drizzle.team/docs/column-types) marshalling
+  * IE [`Date` objects are converted to sqlite `number`](https://orm.drizzle.team/docs/sqlite/column-types#integer) out of the box
+* [custom types](https://orm.drizzle.team/docs/sqlite/custom-types) make it easy to marshal json with specific conversion requirements at the database boundary
+* for [operations](https://orm.drizzle.team/docs/sqlite/data-querying) it offers both
+  * [ORM-like CRUD convenience functions](https://orm.drizzle.team/docs/sqlite/rqb) with relational updates
+  * and granular, [query-builder-to-SQL methods](https://orm.drizzle.team/docs/sqlite/select) for more control
+* typescript is a first-class citizen and *so many* types and type-builders are available out-of-the-box
+  * Makes typing arguments outside of drizzle functions much easier and somewhat composable
+
+#### Database
+
+Once I settled on Drizzle I needed to choose what [database](https://orm.drizzle.team/docs/sqlite/connect-overview) MS would actually use.
+
+One of MS's features that I wanted to preserve was its lack of external state *outside the container*. I distinctly remember, as a beginning self-hoster, appreciating projects that kept all data "in one place" rather than requiring separate containers with their own volumes to hold database data or queues or whatever. Knowing there was one folder where *everything* that was needed to run the application lived made it easier to backup and transfer my app to somewhere else.
+
+Even with MS's expanded scope it's still not big enough to need this separate container mentality, so to preserve this beginner-friendly encapsulation I wanted to use a serverless database that could fully be stored a file/folder right in the MS configuration directory. This narrowed my choices to **sqlite** and the upstart [**pglite**](https://pglite.dev/).
+
+> To evaluate these databases, and drizzle itself, I wrote connection and db building logic as independent modules and then implemented a [test suite](https://github.com/FoxxMD/multi-scrobbler/blob/fab2e4938de35713868ecd048b4e793890c71b68/src/backend/tests/database/drizzle.test.ts) with [mocha](https://mochajs.org/) and [chai](https://www.chaijs.com/) to test all of the basic facets I would be using:
+>
+> * database creation and IoC
+> * database backup and migration
+> * Play creation and updating with type marshalling
+> * search and filtering
+>
+> This saved me from needing to rewrite any of MS core logic before evaluating that drizzle + the chosen db would be suitable for the job.
+{: .prompt-info }
+
+I initially implemented the test suite with **sqlite** as the database. This went fairly smoothly after doing *some* digging around in the drizzle github discussions for more niche uses of custom types and query filter typing.
+
+Then, [I tried out pglite](https://github.com/FoxxMD/multi-scrobbler/pull/593) as it is a very attractive proposition. A full postgres database in a single folder that only needs a client, no server, and can use almost all postgres extensions?? My initial testing was very promising: the startup time and performance was almost equivalent to sqlite but with much better space-saving characteristics on disk due to json being converted to JSONB.
+
+However, the memory usage with pglite was [3-4x](https://github.com/FoxxMD/multi-scrobbler/pull/588#issuecomment-4431828405) higher than the same scenarios with sqlite due to (obviously) needing to embed the entire pglite engine in memory. If MS was a much more sophisticated application that took full advantage (or needed) many of the extensions to operate this cost could have be justified, but it does not need them and so, sadly, pglite was off the table. 
+
+**Thus, I settled on sqlite as the backing database for MS.** Let me set the record straight, though, sqlite is no slouch: its performance is above and beyond what is required by MS, even when handling 10's of thousands of Plays.
+
+### Syncing Source-of-Truth Entities
+
+The first hurdle for actually migrating to a database was ensuring that entities that are generated *from config* on each startup match up to the entities stores *in the database*. Specifically, [Sources](https://docs.multi-scrobbler.app/configuration/sources/) and [Clients](https://docs.multi-scrobbler.app/configuration/clients/) are created from [configuration](https://docs.multi-scrobbler.app/configuration/#configuration-types) that is considered the source-of-truth for the application. If configuration for `Source A` changes in file, how do we ensure that the representation of `Source A` in the database is associated with the changed entity that is created at startup? This affects more than just the Source shown in the web UI: all Plays, queued scrobbles, and transformers are associated with a Source/Client as is all of their historical data.
+
+The solution was simple but required a breaking change. We would introduce an atomic [`id`](https://docs.multi-scrobbler.app/updating/upgrade-path/0140/#configuring-ids) that must be included in configuration for each Source/Client. Regardless of what other properties change in the config, this id will always determine what database entity the generated config entity is associated with.
+
+To make this breaking change *somewhat* backwards compatible I fallback to using the Source/Client `name` property as the ID. With the drawback of this being that the user must define any future config as the id used at the time they migrated to MS 0.14.0 >=.
+
+### Play Serialization
+
+On the issue of converting Plays/Scrobbles to be useable for both the database and the MS domain logic I settled on a compromise of keeping Plays as plain, JSON serializable objects in both memory and the database.
+
+Converting Plays to a fully normalized database entity where artists, albums, and other meta properties were separate entities would have been a *massive* rewrite in the domain where Plays are currently one plain object:
+
+```jsonc
+{
+  "data": {
+    "title": "Foo",
+    "artists": ["Guy 1", "Guy 2"], // convert these to rows in deduplicated table
+    "album": "Bar" // convert this to row in a deduplicated table, associate with artists
+  },
+  "meta": {
+    "source": "Jellyfin", // convert this to row in a deduplicated table
+    "url": "http://yourJelly/..."
+  }
+}
+```
+
+While normalized tables would be more space efficient and closer to the schema downstream scrobble services like Koito use, Multi-Scrobbler *is not* a full-blown scrobble server and I did not want to design it to be as such. It should be able to hold a months' worth of data, not years or decades. Space efficiency is *good* but the main priority is moving that space out of memory and on to disk, not optimizing for disk usage. The cost of optimizing for disk would have been a much longer rewrite of all domain logic to treat the Play object as separate entities for each of the above properties. Too high a cost at the current time.
+
+On the database side, this is actually not a huge drawback. Since plays are serializable, and queryable, as plain JSON we can take advantage of [sqlite's built-in json functions](https://sqlite.org/json1.html) to query facets of play data directly in the database, when needed.
+
+### Queues and Querying Lists
+
+The main implementation effort took place here. As [mentioned above](#backend-architecture), all of MS's access for "lists of Plays" is done under the assumption of immediate, in-memory access.
+
+This was an issue even before the frontend redesign: users with heavy listening activity or chronically degraded services were reported large memory increases as queues got backed up with 100s of Plays waiting to be processed or backlogged. All of these Plays needed to stay in memory, which was convenient for querying/manipulating them but terrible for end users.
+
+This was addressed in two phases:
+
+#### Historical Scrobble Querying
+
+Historical (duplicate) scrobble matching was previously accomplished by querying and storing an in-memory list of the most recent scrobbles from downstream clients. If a candidate scrobble was outside the time range of this initial list (which is updated as scrobbles are made) then it was *dropped*, or matching could be bypassed entirely by config and forced to scrobble. In order to allow a longer time range more scrobbles would need to be queried and held in memory. The trade-off between better historical matching was linear memory growth.
+
+This was approach was [re-written](https://github.com/FoxxMD/multi-scrobbler/releases/tag/0.12.0) so that all Clients implement a paginated, time-range queryable API surface. The generic scrobble process can request any arbitrary time-range and get back a list of scrobbles, from the downstream api, that occurred during that time. This list is then queried for duplicates and cached for a short time in an LRU cache.
+
+This allowed historical matching any time range without the memory penalty and removed one structure from the list of in-memory lists that needed to be culled.
+
+The second part of this matching relies on matching against any scrobbles *specifically seen by MS*, rather than rely on downstream api responses. The matching logic was preserved but the method of "getting the existing list" was rewritten to use a similar API that queries the Plays in the database associated with the client and returns a relevant time range for the candidate scrobble.
+
+#### Queued Plays
+
+Initially, I investigated using existing queue libraries backed by file, or sqlite, like [workmatic](https://github.com/litepacks/workmatic) but eventually decided against using any of them because they all had the same drawback: the jobs in queue could not be easily queried. There is the possibility of many Plays being queued for processing for a non-trivial amount of time and I wanted the frontend redesign to be able to display which Plays were queued and what state they were in.
+
+So I rolled my own, simple, queue system. MS stores all Plays in the database, regardless of what queue or state they are in. Then, they get associated to a specific [`queue_state` entity](https://github.com/FoxxMD/multi-scrobbler/blob/fab2e4938de35713868ecd048b4e793890c71b68/src/backend/common/database/drizzle/schema/schema.ts#L138) that dictates which queue they are in, what the status of processing is, and when it was created/seen (to determine queue order).
+
+A function that queries the database for Plays with this `queue_state` and `queueStatus=queued` is used to "pop" the Play off the queue and feed it into the Source/Client processing logic. At the end of processing the `queueStatus` is **always** updated so that the next query will always return a different Play.
+
+```ts
+let nextQueued = await this.playRepo.getQueueNext(CLIENT_INGRESS_QUEUE);
+if(nextQueued !== undefined) {
+    while (nextQueued !== undefined) {
+        // processes Play
+        // and in try-catch finally block
+        // updates `queueStatus` based on result
+        await this.processQueueCurrentScrobble(nextQueued, signal);
+        nextQueued = await this.playRepo.getQueueNext(CLIENT_INGRESS_QUEUE)
+    }
+    this.emitEvent('queueEmptied', {});
+}
+```
+
+This replaces the in-memory queue "list" entirely and makes it so our queue length no longer affects memory consumed.
