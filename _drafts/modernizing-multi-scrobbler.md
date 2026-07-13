@@ -460,7 +460,7 @@ The old landing displayed summaries, logs, and actions all together without any 
 Now, the new landing page presents the user with a way to quickly see only relevant summary information (state of Source/Client, live update indicators) with the option to navigate to a new screen that presents more detailed information and actions *for only the component they care about*.
 
 
-####Logs
+#### Logs
 
 The Logs UX is another implementation of progressive disclosure. Most users don't immediately need Logs to be accessible as they present noisy data that is largely only useful for troubleshooting purposes.
 
