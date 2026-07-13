@@ -380,3 +380,42 @@ Together, these policies allow a lenient way to reclaim space without sacrificin
 * delete after `2 weeks` => you have 2 weeks to see all history with basic timeline events and essential scrobble data like title/artist/album etc...
 
  To keep MS aggressive on space use in the worst-case scenario I defaulted these policies to `3 days` compaction and `7 days` deletion. But these can be updated by the user with simple ENV or file configuration globally or per Source/Client.
+
+## Implementation Part Two: Frontend
+
+### My Achilles Heel
+
+I'll be the first to admit that my UI/UX and design skills *are not great*.
+
+I'm not so bad as to fill the stereotype of *"unstyled html with every button and field on the same page"* engineer but visual creativity is a challenge for me. I usually rely on exhaustive component frameworks like [antd](https://ant.design/) to do the heavy lifting on UI and then I slap together whatever work on the page.
+
+Shamefully, the majority of my frontend implementations have been born from a vague idea in my mind where I design *and implement* at the same time without any thought for layout/design ahead of time. There is very little iteration.
+
+### Design First
+
+With this redesign I was determined to do things The Right Way™️ so that my efforts aren't wasted on rewriting later, my users get actual improvements in experience, and I can gain the skills necessary to implement future projects without as much pain.
+
+The first step for this was already done: my UI/UX design friend had already [sat me down](#user-first-design-requirements) and helped me hammer out a rough outline of the design along with (not so) gently challenging my assumptions about how to design for UX.
+
+Now, I wanted to put this design into practice in a way that I could iterate on without needing to do the full implementation inside the codebase. After some research, I landed on using [**Storybook**](https://storybook.js.org/) for this process, mainly because it [already supported integration](https://storybook.js.org/docs/builders/vite) with my existing frontend tooling library, [vite.](https://vite.dev/)
+
+Storybook enabled me to build components in isolation so that I could quickly iterate on how each functioned and rendered without having to wire up a full backend, or dependent components, to make them work.
+
+I used a combination of hand-rolled [data interface fixtures](https://github.com/FoxxMD/multi-scrobbler/blob/fab2e4938de35713868ecd048b4e793890c71b68/src/core/tests/utils/apiFixtures.ts) using [Faker](https://fakerjs.dev/) for randomized data, and [MSW](https://storybook.js.org/docs/writing-stories/mocking-data-and-modules/mocking-network-requests#set-up-the-msw-addon) for mocking API calls so that each storied compoonent could get "real" data that would match the actual, eventual implementation used in MS.
+
+This approach also enabled me to hammer out the API interface the backend would eventually implement, driven by the needs of the frontend.
+
+> Additionally, this helped informed my decision for state and API interaction in the frontend implementation. I was already sticking with React since its what I knew but I found that [Tanstack Query](https://tanstack.com/query) met my needs quite well while being much lighter than something like [RTK Query](https://redux-toolkit.js.org/rtk-query/overview).
+{: .prompt-info }
+
+#### Component Library
+
+The last planning step was choosing a component library. I probably spent the most time on this step as there are just *so many* libraries to choose from these days.
+
+Having previously worked with antd I knew I didn't want to go with any library that was as heavily opinionated as it was.
+
+A benefit of libraries like ant is that they are *exhaustive* and will have implementations, or features, missing from more orthogonal libraries, such as fully-featured Tables with filters/sorting baked in. However, the drawback with these libraries is that if you need to do something that is custom or out of scope you are *really out of luck* and they can become incredible difficult to work with.
+
+At the same time, I was wary about diving in to something like [shadcn](https://ui.shadcn.com/) because I did not want to be responsible for every single component and how they are all composed. I know headless ui libraries are *so hot right now* but it seemed like too much work for my scope, where I wanted to create an implementation with a modicum of flexibility but that wouldn't need to be fully bespoke. Remember, [if Multi-Scrobbler is working as intended you shouldn't need to use the web UI at all.](#why-fix-what-isnt-broken) I didn't want to spend a ton of time creating a UI where the ideal usecase is that a user looks at it for 2 minutes for the entire lifetime of the app.
+
+After much hand-wringing and tinkering in different doc playgrounds, I finally settled on [Chakra UI](https://www.chakra-ui.com/). Chakra strikes a good balance, for me, between allowing users to compose components and providing an opinionated framework. It is built on [Ark UI](https://ark-ui.com/), a headless ui library like shadcn, but provides a batteries-included UI/UX experience that can be tailored when needed.
