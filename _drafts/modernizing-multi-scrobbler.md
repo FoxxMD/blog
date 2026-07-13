@@ -433,8 +433,8 @@ From sketch:
 
 To implementation:
 
-![implementation1](assets/img/msupdate/ms-timeline.png){: width="300" .normal}
-![implementation-error](assets/img/msupdate/ms-mbemptyquery.png){: width="300" .normal}
+![implementation1](assets/img/msupdate/ms-timeline.png)
+![implementation-error](assets/img/msupdate/ms-mbemptyquery.png)
 
 This worked out quite well! Transform steps are a nested timeline within the main Play events timeline. For both, using [`@pierre/diffs`](https://github.com/pierrecomputer/pierre) to visualize line-by-line differences and [`json-diff-ts`](https://github.com/ltwlf/json-diff-ts) to apply changes between steps in order to visualize the final rendered gives users a clear display of how their scrobble data changes over time.
 
@@ -500,3 +500,30 @@ _Filtering by failed scrobbles_
 ### Play Details
 
 Once again, progressive disclosure reveals only the required information to make a decision without overwhelming the user. 
+
+The unexpanded Play shows a summary of the track data and state. The state badge also shows a primary action if the state contextually needs it.
+
+Within an expanded Play, relevant information is surfaced if necessary based on the state of the Play.
+
+![failed played](assets/img/msupdate/ms-playfailed.png){: width="700" }
+_Play badge shows retry button when in failed state, surfaces error, and indicates what section error occurred in_
+
+This is a *huge* improvement over the old UI which showed only a preview of the error without any context.
+
+![old failed](assets/img/msupdate/old-failed.jpg){: width="600" }
+
+## Closing Thoughts
+
+A seemingly straight-forward new feature, *showing the user a timeline of events we already persist*, turned out to be a monumental task.
+
+I couldn't have planned for this eventuality from the very beginning but the warning signs were there for a long time. I dragged my feet for *years* on tackling this architecture issue and when it finally showed its face it was a much larger beast than had I dealt with it early.
+
+At the same time, Multi-Scrobbler's backend architecture was in flux for a large part of its early life. Additionally, the ORM/DB library scene in typescript has taken massive leaps in maturity and feature sets in the last few years. Had I decided to implement a database design earlier I may have locked myself into a design for MS that would have been rigid and slowed development as well as being hampered by the immature tools of the time. So it's hard to say *when* was the right time to tackle this challenge. Though *now* is always better than *never*.
+
+Despite the above whinging, I truly enjoyed climbing this mountain. It gave me the opportunity to re-think a non-trivial project at 1000ft level and then learn how to actually implement that refactor without having to burn everything down. I haven't had a chance to do a surgical refactor like this, it was a learning experience.
+
+Additionally, I finally got to try my hand at *proper* design-first implementation with real-world tools (Storybook) and iterate on development for the frontend in a way I haven't been able to before. I learned so much about developing APIs based on design needs and felt like I got a real glimpse of what it means to be a "frontend developer".
+
+**If you are a developer reading this**, I implore you to get your hands dirty in your next big refactor. Gen AI assistance has been a huge boon for velocity, especially in indie project, but doing everything *manually* lets you sharpen your skills and learn new lessons you wouldn't get by just letting Claude plan and refactor your code. There's a balance to be struck between hand-rolling every function and letting 10 sub agents commit over your entire worktree.
+
+**If you are a multi-scrobbler user**, I hope this was an insightful read into what it takes to keep your scrobbles flowing frictionlessly! If this gave you any ideas about how MS could be better, or what else you would like to see it doing in the future, please don't hesitate to drop a [feature request](https://github.com/FoxxMD/multi-scrobbler/issues/new?template=02-feature-request.yml) in the github issues! I'm looking forward to hearing from you. 🎵
