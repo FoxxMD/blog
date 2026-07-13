@@ -9,20 +9,17 @@
         "terminal.integrated.defaultProfile.linux": "zsh"
       },
       "extensions": [
-        // Liquid tags auto-complete
         "killalau.vscode-liquid-snippets",
-        // Liquid syntax highlighting and formatting
         "Shopify.theme-check-vscode",
-        // Shell
         "timonwong.shellcheck",
         "mkhl.shfmt",
-        // Common formatter
         "EditorConfig.EditorConfig",
         "esbenp.prettier-vscode",
         "stylelint.vscode-stylelint",
         "yzhang.markdown-all-in-one",
-        // Git
-        "eamodio.gitlens"
+        "eamodio.gitlens",
+        "elijah-potter.harper",
+        "ms-vscode.wordcount"
       ]
     }
   }
