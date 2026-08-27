@@ -144,7 +144,7 @@ const formatColumns = (arr: string[], numCols: number) => {
   return rows.join("\n");
 }
 
-const availableUpdates = await komodo.read('ListStacks', {});
+const availableUpdates = await komodo.read('ListStacks', { limit: 0 });
 
 let userTags: string[] = [];
 let tagsList: Types.ListTagsResponse;
