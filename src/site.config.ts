@@ -67,7 +67,7 @@ const config: SiteConfig = {
     // These will be used to theme the entire site along with syntax highlighting.
     // To use light-dark-auto mode, only include a light and a dark theme in that order.
     include: [
-      'github-light',
+      'one-light',
       'vesper',
     ],
     // include: [
@@ -156,6 +156,9 @@ const config: SiteConfig = {
       //   separator: 'magenta',
       //   link: 'list',
       // },
+      "one-light": {
+        'background': 'rgb(245, 243, 239)' //'#f6eeee'
+      }
     },
   },
   // Social links to display in the footer.
