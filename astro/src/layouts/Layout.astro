@@ -174,5 +174,26 @@ let generatedCss: string = cssLines.join('\n')
       </main>
       <Footer />
     </div>
+    <script>
+      // astro-mermaid's autoTheme only understands data-theme="light|dark", but the theme
+      // switcher sets data-theme to a shiki theme id (e.g. github-dark). Pick mermaid's theme
+      // from the active theme's background luminance instead, which works in every theme mode.
+      const root = document.documentElement
+      const isDark = () => {
+        let hex = getComputedStyle(root).getPropertyValue('--theme-background').trim().slice(1)
+        if (hex.length <= 4) hex = [...hex].map((c) => c + c).join('') // #fff shorthand
+        const [r, g, b] = [0, 2, 4].map((i) => parseInt(hex.slice(i, i + 2), 16))
+        return 0.299 * r + 0.587 * g + 0.114 * b < 128
+      }
+      if (document.querySelector('pre.mermaid')) {
+        import('mermaid').then(({ default: mermaid }) => {
+          const initialize = mermaid.initialize.bind(mermaid)
+          mermaid.initialize = (config) =>
+            initialize({ ...config, theme: isDark() ? 'dark' : 'default' })
+          // astro-mermaid may have rendered before this patch; re-trigger its data-theme observer
+          root.setAttribute('data-theme', root.getAttribute('data-theme')!)
+        })
+      }
+    </script>
   </body>
 </html>

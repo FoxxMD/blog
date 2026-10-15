@@ -82,7 +82,7 @@ export default defineConfig({
       plugins: [pluginLineNumbers(), pluginLink()],
     }), // Must come after expressive-code integration
     mermaid({
-      theme: 'default',
+      theme: 'neutral',
       autoTheme: true,
       mermaidConfig: {
         flowchart: {
