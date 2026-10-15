@@ -343,9 +343,10 @@ on a docker container then Traefik will automatically get a cert for `example.co
 
 This is where Traefik really shines. To use wildcard certs with Traefik, we add a few more lines to our existing [static config](#static-file), specifying the dns challenge provider and explicitly defining the domains:
 
-```diff title="/etc/traefik/traefik.yaml"
-# source: \[traefik.yaml#L64-L65](https://github.com/FoxxMD/traefik-homelab/blob/main/traefik_internal/traefik/static_config/traefik.yaml#L64-L65)
-entryPoints
+```diff lang="yaml" title="/etc/traefik/traefik.yaml"
+# [!link /traefik.yaml#L64-L65/ https://github.com/FoxxMD/traefik-homelab/blob/main/traefik_internal/traefik/static_config/traefik.yaml#L64-L65]
+# source: traefik.yaml#L64-L65
+entryPoints:
   websecure:
     asDefault: true
     address: :443
@@ -373,8 +374,9 @@ certificatesResolvers:
 
 and then add to our traefik service whatever ENVs are required to fulfill the [DNS provider's config](https://doc.traefik.io/traefik/https/acme/#providers):
 
-```diff title="compose.yaml"
-# source: \[compose.yaml#L14](https://github.com/FoxxMD/traefik-homelab/blob/main/traefik_internal/compose.yaml#L14)
+```diff lang="yaml" title="compose.yaml"
+# [!link /compose.yaml#L14/ https://github.com/FoxxMD/traefik-homelab/blob/main/traefik_internal/compose.yaml#L14]
+# source: compose.yaml#L14
 services:
   traefik:
     # ...
@@ -502,7 +504,8 @@ Configure traefik to output access logs, make sure files are rotated, and expose
 In your traefik [static config](#static-file) add:
 
 ```yaml title="/etc/traefik/traefik.yaml"
-# source: \[traefik.yaml#L1](https://github.com/FoxxMD/traefik-homelab/blob/main/traefik_external/traefik/static_config/traefik.yaml#L1)
+# [!link /traefik.yaml#L1/ https://github.com/FoxxMD/traefik-homelab/blob/main/traefik_external/traefik/static_config/traefik.yaml#L1]
+# source: traefik.yaml#L1
 accessLog:
 # Using custom json format to prevent buffering, drop headers, and keep user agent
   filePath: "/var/log/traefik/access.log"
@@ -524,7 +527,8 @@ accessLog:
 Make sure to mount the log dir to your host filesystem, add socket-proxy to the [`crowdsec_net` network](#setup-networks-from-guide), and add the rest of the access log functionality to `compose.yaml`
 
 ```yaml title="traefik_external/compose.yaml"
-# source: \[compose.yaml#L37](https://github.com/FoxxMD/traefik-homelab/blob/main/traefik_external/compose.yaml#L37)
+# [!link /compose.yaml#L37/ https://github.com/FoxxMD/traefik-homelab/blob/main/traefik_external/compose.yaml#L37]
+# source: compose.yaml#L37
 services:
   traefik:
   # ...
@@ -596,7 +600,8 @@ networks:
 #### Setup Crowdsec Local API {#crowdsec-local-api}
 
 ```yaml title="crowdsec/compose.yaml"
-# source: \[compose.yaml#L2](https://github.com/FoxxMD/traefik-homelab/blob/main/crowdsec/compose.yaml#L2)
+# [!link /compose.yaml#L2/ https://github.com/FoxxMD/traefik-homelab/blob/main/crowdsec/compose.yaml#L2]
+# source: compose.yaml#L2
 services:
   crowdsec:
     image: "crowdsecurity/crowdsec:latest"
@@ -642,7 +647,8 @@ This command will output a **bouncer key**. Save this for [traefik bouncer setup
 #### Setup Crowdsec Child Log Processor {#crowdsec-child-setup}
 
 ```yaml title="crowdsec/compose.yaml"
-# source: \[compose.yaml#L21](https://github.com/FoxxMD/traefik-homelab/blob/main/crowdsec/compose.yaml#L21)
+# [!link /compose.yaml#L21/ https://github.com/FoxxMD/traefik-homelab/blob/main/crowdsec/compose.yaml#L21]
+# source: compose.yaml#L21
   crowdsec-ingest:
     image: "crowdsecurity/crowdsec:latest"
     environment:
@@ -693,7 +699,8 @@ password: 9W0Mtyh5lJ1Hks29BxN4arPKA06t264J8TvIh9Uxu1fyHAVGO22AcWNbx8Oh4tJ
 Finally, modify `acquis.yaml` to add the docker data source for our `tail-log` container that is [streaming traefik access logs:](#access-logs)
 
 ```yaml title="/etc/crowdsec/acquis.yaml"
-# source: \[acquis.yaml#L10](https://github.com/FoxxMD/traefik-homelab/blob/main/crowdsec/crowdsec_ingest/config/acquis.yaml#L10)
+# [!link /acquis.yaml#L10/ https://github.com/FoxxMD/traefik-homelab/blob/main/crowdsec/crowdsec_ingest/config/acquis.yaml#L10]
+# source: acquis.yaml#L10
 source: docker
 container_name:
  - tail-log
@@ -709,7 +716,8 @@ Now `crowdsec-ingest` can be restarted and should be processing traefik logs as 
 Add the `crowdsec` service IP and **bouncer key** [generated earlier](#crowdsec-local-api) to traefik as environmental variables. Also add [`crowdsec_net` network](#setup-networks-from-guide) to traefik if you have not already.
 
 ```yaml title="traefik_external/compose.yaml"
-# source: \[compose.yaml#L17-L18](https://github.com/FoxxMD/traefik-homelab/blob/main/traefik_external/compose.yaml#L17-L18)
+# [!link /compose.yaml#L17-L18/ https://github.com/FoxxMD/traefik-homelab/blob/main/traefik_external/compose.yaml#L17-L18]
+# source: compose.yaml#L17-L18
   traefik:
     image: "traefik:v3.3"
     networks:
@@ -726,7 +734,8 @@ Add the `crowdsec` service IP and **bouncer key** [generated earlier](#crowdsec-
 Add the [crowdsec-bouncer-traefik-plugin](https://github.com/maxlerebourg/crowdsec-bouncer-traefik-plugin) to your traefik [static config file](#static-file).
 
 ```yaml title="/etc/traefik/traefik.yaml"
-# source: \[traefik.yaml#L53-L55](https://github.com/FoxxMD/traefik-homelab/blob/main/traefik_external/traefik/static_config/traefik.yaml#L53-L55)
+# [!link /traefik.yaml#L53-L55/ https://github.com/FoxxMD/traefik-homelab/blob/main/traefik_external/traefik/static_config/traefik.yaml#L53-L55]
+# source: traefik.yaml#L53-L55
 experimental:
   plugins:
     # ...
@@ -738,7 +747,8 @@ experimental:
 Create a new middleware in your traefik [dynamic config](#dynamic-file) that configures the CS plugin. We use [go templating](https://doc.traefik.io/traefik/providers/file/#go-templating) to [get the ENVs](https://masterminds.github.io/sprig/os.html) we set in the compose service earlier.
 
 ```yaml title="/config/dynamic/global.yaml"
-# source: \[global.yml#L12-L26](https://github.com/FoxxMD/traefik-homelab/blob/main/traefik_external/traefik/dynamic_config/global.yml#L12-L26)
+# [!link /global.yml#L12-L26/ https://github.com/FoxxMD/traefik-homelab/blob/main/traefik_external/traefik/dynamic_config/global.yml#L12-L26]
+# source: global.yml#L12-L26
 http:
   middlewares:
     # ...
@@ -787,7 +797,8 @@ First, acquire your tunnel token by [creating a tunnel](https://developers.cloud
 Next, setup the `cloudflared` container in your traefik stack:
 
 ```yaml title="traefik_external/compose.yaml"
-# source: \[compose.yaml#L81-L88](https://github.com/FoxxMD/traefik-homelab/blob/main/traefik_external/compose.yaml#L81-L88)
+# [!link /compose.yaml#L81-L88/ https://github.com/FoxxMD/traefik-homelab/blob/main/traefik_external/compose.yaml#L81-L88]
+# source: compose.yaml#L81-L88
 services:
   traefik:
     image: "traefik:v3.3"
@@ -825,7 +836,8 @@ Now we need to 1) tell Traefik to accept CF Tunnel traffic on an [entrypoint](ht
 In your traefik [static config](#static-file) configure an entrypoint with a port and [forwarded headers](https://doc.traefik.io/traefik/routing/entrypoints/#forwarded-headers) so traefik knows to use CF IP as "request from" IP, rather than the `cloudflared` container internal IP. We will then use this later to get the [actual "request from" IP.](#cf-real-ip-forwarding)
 
 ```yaml title="/etc/traefik/traefik.yaml"
-# source: \[traefik.yaml#L36-L46](https://github.com/FoxxMD/traefik-homelab/blob/main/traefik_external/traefik/static_config/traefik.yaml#L36-L46)
+# [!link /traefik.yaml#L36-L46/ https://github.com/FoxxMD/traefik-homelab/blob/main/traefik_external/traefik/static_config/traefik.yaml#L36-L46]
+# source: traefik.yaml#L36-L46
 # ...
 entryPoints:
   cf:
@@ -862,7 +874,8 @@ Finally, we need to configure traefik to substitute the value of the header `Cf-
 To do this we first install the [traefik plugin](https://doc.traefik.io/traefik/plugins/) [cloudflarewarp](https://github.com/PseudoResonance/cloudflarewarp) by defining it in our [static config](#static-file):
 
 ```yaml title="/etc/traefik/traefik.yaml"
-# source: \[traefik.yaml#L50-L52](https://github.com/FoxxMD/traefik-homelab/blob/main/traefik_external/traefik/static_config/traefik.yaml#L50-L52)
+# [!link /traefik.yaml#L50-L52/ https://github.com/FoxxMD/traefik-homelab/blob/main/traefik_external/traefik/static_config/traefik.yaml#L50-L52]
+# source: traefik.yaml#L50-L52
 # add this to the /etc/traefik/traefik.yaml example above
 experimental:
   plugins:
@@ -874,7 +887,8 @@ experimental:
 Then, define a middleware that uses the plugin in a [dynamic config file.](#dynamic-file)
 
 ```yaml title="/config/dynamic/global.yaml"
-# source: \[global.yml#L7-L11](https://github.com/FoxxMD/traefik-homelab/blob/main/traefik_external/traefik/dynamic_config/global.yml#L7-L11)
+# [!link /global.yml#L7-L11/ https://github.com/FoxxMD/traefik-homelab/blob/main/traefik_external/traefik/dynamic_config/global.yml#L7-L11]
+# source: global.yml#L7-L11
 http:
   middlewares:
     cloudflarewarp:
@@ -886,7 +900,8 @@ http:
 To use with the entrypoint we setup earlier in our static config add `entryPoints.cf.http.middlewares` with our `middleware@provider`:
 
 ```yaml title="/etc/traefik/traefik.yaml"
-# source: \[traefik.yaml#L41](https://github.com/FoxxMD/traefik-homelab/blob/main/traefik_external/traefik/static_config/traefik.yaml#L41)
+# [!link /traefik.yaml#L41/ https://github.com/FoxxMD/traefik-homelab/blob/main/traefik_external/traefik/static_config/traefik.yaml#L41]
+# source: traefik.yaml#L41
 # ... building on previous static config
 # ...
 entryPoints:
@@ -913,8 +928,9 @@ The [guide](https://docs.goauthentik.io/docs/add-secure-apps/providers/proxy/ser
 
 If you deploy `authentik-proxy` in the same stack as the authentik `server` service you can change these environmental variables in `authentik-proxy` to take advantage of the stack network/hostnames:
 
-```diff title="authentik/compose.yaml"
-# source: \[compose.yaml#L83-L84](https://github.com/FoxxMD/traefik-homelab/blob/main/authentik/compose.yaml#L83-L84)
+```diff lang="yaml" title="authentik/compose.yaml"
+# [!link /compose.yaml#L83-L84/ https://github.com/FoxxMD/traefik-homelab/blob/main/authentik/compose.yaml#L83-L84]
+# source: compose.yaml#L83-L84
 service:
   # ...
   authentik-proxy:
@@ -960,7 +976,8 @@ Traefik offers first-class support for [Service Discovery](https://doc.traefik.i
 Traefik supports "discovery" of services in a manner similar to Nginx using the ["dynamic" file provider](#dynamic-file). These are plain yaml files where you write all the configuration necessary for traefik to connect to an upstream service. Where these files are located is defined in traefik's [static config](#static-file):
 
 ```yaml title="/etc/traefik/traefik.yaml"
-# source: \[traefik.yaml#L31-L33](https://github.com/FoxxMD/traefik-homelab/blob/main/traefik_internal/traefik/static_config/traefik.yaml#L31-L33)
+# [!link /traefik.yaml#L31-L33/ https://github.com/FoxxMD/traefik-homelab/blob/main/traefik_internal/traefik/static_config/traefik.yaml#L31-L33]
+# source: traefik.yaml#L31-L33
 providers:
   file:
     directory: "/config/dynamic"
@@ -1065,7 +1082,8 @@ If you have multiple hosts running docker you should strongly consider [creating
 Add a Redis server to your traefik stack attached to the [`kop_net` network](#setup-networks-from-guide):
 
 ```yaml title="traefik_internal/compose.yaml"
-# source: \[compose.yaml#L63-L75](https://github.com/FoxxMD/traefik-homelab/blob/main/traefik_internal/compose.yaml#L63-L75)
+# [!link /compose.yaml#L63-L75/ https://github.com/FoxxMD/traefik-homelab/blob/main/traefik_internal/compose.yaml#L63-L75]
+# source: compose.yaml#L63-L75
 services:
   traefik:
     # ...
@@ -1090,7 +1108,8 @@ networks:
 and configure it as a [provider](https://doc.traefik.io/traefik/providers/redis/):
 
 ```yaml title="/etc/traefik/traefik.yaml"
-# source: \[traefik.yaml#L28-L30](https://github.com/FoxxMD/traefik-homelab/blob/main/traefik_internal/traefik/static_config/traefik.yaml#L28-L30)
+# [!link /traefik.yaml#L28-L30/ https://github.com/FoxxMD/traefik-homelab/blob/main/traefik_internal/traefik/static_config/traefik.yaml#L28-L30]
+# source: traefik.yaml#L28-L30
 providers:
   redis:
     endpoints:
@@ -1100,7 +1119,8 @@ providers:
 Next, on each docker host, create a new stack for kop and attach it to the [`kop_net` network](#setup-networks-from-guide). I prefer to connect it to docker using [docker-socket-proxy](https://docs.linuxserver.io/images/docker-socket-proxy) since it only needs limited, read-only capabilities.
 
 ```yaml title="traefik_kop/compose.yaml"
-# source: \[compose.yaml](https://github.com/FoxxMD/traefik-homelab/blob/main/traefik_kop/compose.yaml)
+# [!link /compose.yaml/ https://github.com/FoxxMD/traefik-homelab/blob/main/traefik_kop/compose.yaml]
+# source: compose.yaml
 services:
   traefik-kop:
     image: "ghcr.io/jittering/traefik-kop:latest"
@@ -1247,8 +1267,9 @@ Replace `--driver=bridge` with `--driver=overlay` if you have [swarm mode enable
 
 Create a new Stack for an external Traefik service and modify your existing one for use with internal services only (or however best fits your implementation). Each Traefik instances will get only one entrypoint based on where traffic comes from IE External -> entrypoint for [Cloudflare Tunnels](#cloudflare-tunnels-integration) only, Internal -> entrypoint for 80/443 with local dns. Make sure to add each instance of the respective network you just created.
 
-```diff title="traefik_internal/compose.yaml"
-# source: \[compose.yaml#L7](https://github.com/FoxxMD/traefik-homelab/blob/main/traefik_internal/compose.yaml#L7)
+```diff lang="yaml" title="traefik_internal/compose.yaml"
+# [!link /compose.yaml#L7/ https://github.com/FoxxMD/traefik-homelab/blob/main/traefik_internal/compose.yaml#L7]
+# source: compose.yaml#L7
 services:
   traefik:
   # ...
@@ -1262,8 +1283,9 @@ networks:
 +   external: true
 ```
 
-```diff title="traefik_external/compose.yaml"
-# source: \[compose.yaml#L6](https://github.com/FoxxMD/traefik-homelab/blob/main/traefik_external/compose.yaml#L6)
+```diff lang="yaml" title="traefik_external/compose.yaml"
+# [!link /compose.yaml#L6/ https://github.com/FoxxMD/traefik-homelab/blob/main/traefik_external/compose.yaml#L6]
+# source: compose.yaml#L6
 services:
   traefik:
   # ...
@@ -1281,8 +1303,9 @@ Next, if you are using [traefik-kop for service discovery](#docker-standalone) t
 
 Specify the associated traefik redis host and modify each instance to use a [namespace](https://github.com/jittering/traefik-kop?tab=readme-ov-file#namespaces) so that kop knows which services should be sent to which traefik instance.
 
-```diff title="compose.yaml"
-# source: \[compose.yaml](https://github.com/FoxxMD/traefik-homelab/blob/main/traefik_kop/compose.yaml)
+```diff lang="yaml" title="compose.yaml"
+# [!link /compose.yaml/ https://github.com/FoxxMD/traefik-homelab/blob/main/traefik_kop/compose.yaml]
+# source: compose.yaml
 services:
 - traefik-kop
 + traefik-kop-internal:
@@ -1390,7 +1413,8 @@ As environmental variables passed to the program or in `environment:` in `compos
 Importantly, regular YAML/TOML files can be parsed as "dynamic" config using the [File provider](https://doc.traefik.io/traefik/providers/file/). To use files/directories as dynamic config, they need to be defined in the Static Config first like:
 
 ```yaml title="/etc/traefik/traefik.yaml"
-# source: \[traefik.yaml#L32](https://github.com/FoxxMD/traefik-homelab/blob/main/traefik_external/traefik/static_config/traefik.yaml#L32)
+# [!link /traefik.yaml#L32/ https://github.com/FoxxMD/traefik-homelab/blob/main/traefik_external/traefik/static_config/traefik.yaml#L32]
+# source: traefik.yaml#L32
 providers:
   file:
     directory: "/config/dynamic"
@@ -1430,7 +1454,8 @@ services:
 
 vs
 ```yaml title="/etc/traefik/traefik.yaml"
-# source: \[traefik.yaml](https://github.com/FoxxMD/traefik-homelab/blob/main/traefik_external/traefik/static_config/traefik.yaml)
+# [!link /traefik.yaml/ https://github.com/FoxxMD/traefik-homelab/blob/main/traefik_external/traefik/static_config/traefik.yaml]
+# source: traefik.yaml
 entryPoints:
   web:
     address: :80
@@ -1448,7 +1473,8 @@ entryPoints:
 I keep my static config mounted to [`/etc/traefik/traefik.yaml`](https://doc.traefik.io/traefik/getting-started/configuration-overview/#configuration-file) inside the traefik docker container.
 
 ```yaml title="compose.yaml"
-# source: \[compose.yaml#L20](https://github.com/FoxxMD/traefik-homelab/blob/main/traefik_internal/compose.yaml#L20)
+# [!link /compose.yaml#L20/ https://github.com/FoxxMD/traefik-homelab/blob/main/traefik_internal/compose.yaml#L20]
+# source: compose.yaml#L20
   traefik:
     image: "traefik:v3.3"
     # ...
@@ -1469,14 +1495,16 @@ Additionally, any config that requires long lists, deeply-nested properties, or 
 My [File provider](https://doc.traefik.io/traefik/providers/file/), configured in the [static config](#static-file), is set to parse dynamic configs from `/config` mounted into the traefik container.
 
 ```yaml title="/etc/traefik/traefik.yaml"
-# source: \[traefik.yaml#L32](https://github.com/FoxxMD/traefik-homelab/blob/main/traefik_external/traefik/static_config/traefik.yaml#L32)
+# [!link /traefik.yaml#L32/ https://github.com/FoxxMD/traefik-homelab/blob/main/traefik_external/traefik/static_config/traefik.yaml#L32]
+# source: traefik.yaml#L32
 providers:
   file:
     directory: "/config/dynamic"
 ```
 
 ```yaml title="compose.yaml"
-# source: \[compose.yaml#L23-L24](https://github.com/FoxxMD/traefik-homelab/blob/main/traefik_external/compose.yaml#L23-L24)
+# [!link /compose.yaml#L23-L24/ https://github.com/FoxxMD/traefik-homelab/blob/main/traefik_external/compose.yaml#L23-L24]
+# source: compose.yaml#L23-L24
   traefik:
     image: "traefik:v3.3"
     # ...
@@ -1495,7 +1523,8 @@ For more context see the repository example of [dynamic config file](https://git
 All routers/services/middlewares that are specific to a docker service are defined using [docker labels](https://doc.traefik.io/traefik/providers/docker/#routing-configuration-with-labels) on that service (with exceptions [mentioned above](#dynamic-file)). The docker service should "own" as much of the configuration for defining how it is wired up to traefik as possible.
 
 ```yaml title="compose.yaml"
-# source: \[compose-internal-service.yaml](https://github.com/FoxxMD/traefik-homelab/blob/main/example_services/compose-internal-service.yaml)
+# [!link /compose-internal-service.yaml/ https://github.com/FoxxMD/traefik-homelab/blob/main/example_services/compose-internal-service.yaml]
+# source: compose-internal-service.yaml
 services:
   serviceA:
     # ...
@@ -1560,7 +1589,8 @@ Then, add a new [Router](https://doc.traefik.io/traefik/routing/routers/) to the
 * `service: noop@internal` is an undocumented "dummy" service that can be used for redirect [#1](https://github.com/traefik/traefik/issues/7291) [#2](https://community.traefik.io/t/noop-internal-service/5165) [#3](https://github.com/traefik/traefik/issues/7242#issuecomment-692101030)
 
 ```yaml title="/config/dynamic/global.yaml"
-# source: \[global.yml#L59-L67](https://github.com/FoxxMD/traefik-homelab/blob/main/traefik_external/traefik/dynamic_config/global.yml#L59-L67)
+# [!link /global.yml#L59-L67/ https://github.com/FoxxMD/traefik-homelab/blob/main/traefik_external/traefik/dynamic_config/global.yml#L59-L67]
+# source: global.yml#L59-L67
 http:
   middlewares:
     anyreg:
@@ -1586,7 +1616,8 @@ This needs to be configured in a [dynamic config (File provider)](#dynamic-file)
 Create a new [ServersTransport](https://doc.traefik.io/traefik/routing/services/#serverstransport_1) configuration that uses [`insecureSkipVerify`](https://doc.traefik.io/traefik/routing/services/#insecureskipverify):
 
 ```yaml title="/config/dynamic/global.yaml"
-# source: \[global.yml#L68-L70](https://github.com/FoxxMD/traefik-homelab/blob/main/traefik_external/traefik/dynamic_config/global.yml#L68-L70)
+# [!link /global.yml#L68-L70/ https://github.com/FoxxMD/traefik-homelab/blob/main/traefik_external/traefik/dynamic_config/global.yml#L68-L70]
+# source: global.yml#L68-L70
 http:
   # ...
   serversTransports:

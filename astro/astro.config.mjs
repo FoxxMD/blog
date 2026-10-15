@@ -6,11 +6,12 @@ import mdx from '@astrojs/mdx'
 import { rehypeHeadingIds, unified } from '@astrojs/markdown-remark'
 import rehypeAutolinkHeadings from 'rehype-autolink-headings'
 import remarkCustomHeaderId from 'remark-custom-header-id'
-import expressiveCode from 'astro-expressive-code'
-import { pluginLink } from 'expressive-code-links'
+//import expressiveCode from 'astro-expressive-code'
+import codeblocks from 'starlight-codeblocks/astro';
+//import { pluginLink } from 'expressive-code-links'
 import siteConfig from './src/site.config'
-import { pluginLineNumbers } from '@expressive-code/plugin-line-numbers'
-import { pluginCollapsible } from 'expressive-code-collapsible'
+//import { pluginLineNumbers } from '@expressive-code/plugin-line-numbers'
+//import { pluginCollapsible } from 'expressive-code-collapsible'
 import remarkDescription from './src/plugins/remark-description' /* Add description to frontmatter */
 import remarkReadingTime from './src/plugins/remark-reading-time' /* Add reading time to frontmatter */
 import rehypeTitleFigure from './src/plugins/rehype-title-figure' /* Wraps titles in figures */
@@ -75,29 +76,19 @@ export default defineConfig({
   },
   integrations: [
     sitemap(),
-    expressiveCode({
-      themes: siteConfig.themes.include,
-      useDarkModeMediaQuery: true,
-      defaultProps: {
-        //showLineNumbers: true,
-        wrap: false,
-      },
-      plugins: [
-        pluginLineNumbers(),
-        pluginLink(),
-        pluginCollapsible({
-          lineThreshold: 30,
-          previewLines: 15,
-        }),
-      ],
-    }), // Must come after expressive-code integration
+    codeblocks({
+      codeTabs: {},
+      expressiveCode: {
+        themes: siteConfig.themes.include,
+        useDarkModeMediaQuery: true,
+      }
+    }),
+    // Must come after expressive-code integration
     mermaid({
       theme: 'neutral',
       autoTheme: true,
       mermaidConfig: {
         flowchart: {
-          // does not seem to work
-          //layout: 'TD'
         },
       },
     }),
