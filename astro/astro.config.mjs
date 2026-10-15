@@ -10,6 +10,7 @@ import expressiveCode from 'astro-expressive-code'
 import { pluginLink } from 'expressive-code-links';
 import siteConfig from './src/site.config'
 import { pluginLineNumbers } from '@expressive-code/plugin-line-numbers'
+import { pluginCollapsible } from 'expressive-code-collapsible';
 import remarkDescription from './src/plugins/remark-description' /* Add description to frontmatter */
 import remarkReadingTime from './src/plugins/remark-reading-time' /* Add reading time to frontmatter */
 import rehypeTitleFigure from './src/plugins/rehype-title-figure' /* Wraps titles in figures */
@@ -74,10 +75,15 @@ export default defineConfig({
       themes: siteConfig.themes.include,
       useDarkModeMediaQuery: true,
       defaultProps: {
-        showLineNumbers: false,
+        //showLineNumbers: true,
         wrap: false,
       },
-      plugins: [pluginLineNumbers(), pluginLink()],
+      plugins: [pluginLineNumbers(), pluginLink(), pluginCollapsible(
+        {
+          lineThreshold: 30,
+          previewLines: 15
+        }
+      )],
     }), // Must come after expressive-code integration
     mermaid({
       theme: 'neutral',
