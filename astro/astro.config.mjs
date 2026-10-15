@@ -78,6 +78,7 @@ export default defineConfig({
     sitemap(),
     codeblocks({
       codeTabs: {},
+      expandable: { lines: 12, auto: 30 },
       expressiveCode: {
         themes: siteConfig.themes.include,
         useDarkModeMediaQuery: true,
