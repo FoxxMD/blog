@@ -412,12 +412,12 @@ The requester then sends their traffic *to the Cloudflare IP*. This is where TLS
 
 Below is a (very) simplied flowchart showing the difference between these two traffic flows.
 
-<!-- TODO mermaid diagrams are not supported yet, rendered as code -->
 ```mermaid
 flowchart TD
     ReqPF[Request]
     ReqPF --> A
     subgraph port-forward
+    direction TB
     A[Router] -->|forward to Traefik| B(Traefik)
     B -->|verifies with cert| ReqPF
     B --> un>Unencrypts traffic]
@@ -426,6 +426,7 @@ flowchart TD
 
     
     subgraph cloudflared
+    direction TB
     ReqCF[Request]
     ReqCF --> CF[CF Edge Server]
     CF -->|verifies with cert| ReqCF

@@ -25,7 +25,6 @@ This guide aims to clear up any ambiguity around how Docker Compose handles envi
 
 Let's start at a high level by describing the different steps Compose takes when `up`ing a stack so that we can see where the disconnect between all of these features takes place.
 
-<!-- TODO mermaid diagrams are not supported yet, rendered as code -->
 ```mermaid
 flowchart TD
 
@@ -34,6 +33,7 @@ flowchart TD
 
     A[[docker compose up]] --> dockerenv
     subgraph dockerenv [compose.yaml 'black box']
+    direction TB
     Par(["Parse <code>.env</code>, <code>--env-file</code> args, and host ENVs"]) --> B(["**Interpolates** key-values from previous step into <code>${KEY_LIKE}</code> strings in compose.yaml **file only**"])
     end
     B -->|"None of the parsed key-values in the 'black box' above are _automatically_ available below. To re-use them they must either 
@@ -42,9 +42,11 @@ flowchart TD
     C[[Start service creation]] --> servicefoo
     C --> servicebar
     subgraph servicefoo [Service Foo]
+    direction TB
     fooenv(["Parses <code>env_file:</code> and <code>environment:</code> attributes in service Foo definition"]) --> D[[Creates Foo with ENVs from previous step **only**]]
     end
     subgraph servicebar [Service Bar]
+    direction TB
     barenv(["Parses <code>env_file:</code> and <code>environment:</code> attributes in service Bar definition"]) --> barser[[Creates Bar with ENVs from previous step **only**]]
     end
 ```
@@ -402,7 +404,6 @@ The different names for all the keys in the above example are to help convey tha
 
 <summary>Komodo Compose Up Flow</summary>
 
-<!-- TODO mermaid diagrams are not supported yet, rendered as code -->
 ```mermaid
 flowchart TD
 
@@ -413,15 +414,18 @@ flowchart TD
     Y -->|writes to ENV File Path| A
     A[[docker compose up --env-file .env + Additional Env Files section]] --> dockerenv
     subgraph dockerenv [compose.yaml 'black box']
+    direction TB
     Par(["Parse <code>.env</code>, <code>--env-file</code> args, and host ENVs"]) --> B("**Interpolates** key-values from previous step into <code>${KEY_LIKE}</code> strings in compose.yaml **file only**")
     end
     B --> C
     C[[Start service creation]] --> servicefoo
     C --> servicebar
     subgraph servicefoo [Service Foo]
+    direction TB
     fooenv(["Parses <code>env_file:</code> and <code>environment:</code> attributes in service Foo definition"]) --> D[[Creates Foo with ENVs from previous step **only**]]
     end
     subgraph servicebar [Service Bar]
+    direction TB
     barenv(["Parses <code>env_file:</code> and <code>environment:</code> attributes in service Bar definition"]) --> barser[[Creates Bar with ENVs from previous step **only**]]
     end
 ```

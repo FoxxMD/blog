@@ -81,11 +81,11 @@ The management functionality enables the CS app to:
 
 Notably, the Management instance does *not* need acquisition config or hub collections/scenarios/etc installed on it. That is only needed on Log Processors.
 
-<!-- TODO mermaid diagrams are not supported yet, rendered as code -->
 ```mermaid
 flowchart TD
 
     subgraph mgt[crowdsec app lapi]
+    direction TB
     dec[decisions] -->|bans IPs and stores| db[database]
     mac[machines]
     end
@@ -94,10 +94,12 @@ flowchart TD
     mac -->|authenticate| lp2
 
     subgraph lp1[crowdsec app on server1]
+    direction TB
     buck1[scenario buckets from log processor] -->|sends alert| dec
     end
 
     subgraph lp2[crowdsec app on server2]
+    direction TB
     buck2[scenario buckets from log processor] -->|sends alert| dec
     end
 ```
@@ -124,16 +126,17 @@ When the CS app is used for Log Processing it:
 
 Note: Data Source, Parsers, and Scenarios can be installed as bundles called [**Collections**](https://app.crowdsec.net/hub/collections).
 
-<!-- TODO mermaid diagrams are not supported yet, rendered as code -->
 ```mermaid
 flowchart TD
 
     subgraph lp[crowdsec app]
+    direction TB
     acquiconf[acqui.d config] -->|use traefik.log| acqui
     acqui[acquisition] -->|parsers file and detects patterns| sc[scenario buckets]
     end
 
     subgraph traefik[traefik]
+    direction TB
     tlog[access log traefik.log] -->|reads log file| acqui
     end
 
@@ -162,11 +165,11 @@ Some examples of bouncers, and how they use Management:
 
 CS develops and maintains a large list of Bouncers for all popular platforms.
 
-<!-- TODO mermaid diagrams are not supported yet, rendered as code -->
 ```mermaid
 flowchart TD
 
     subgraph mgt[crowdsec app lapi]
+    direction TB
     boun[bouncers] -->|create key| bkey[bouncer keys]
     dec[decisions]
     end
@@ -174,6 +177,7 @@ flowchart TD
     bkey <-->|Use key to authenticate| bouncer1
 
     subgraph bouncer1[firewall on server1]
+    direction TB
     dec -->|pulls decision IPs to block| rules[firewall rules]
     end
 ```
