@@ -19,6 +19,7 @@
     "@astrojs/ts-plugin": "^1.10.12",
     "@expo-google-fonts/jetbrains-mono": "^0.4.0",
     "@fontsource-variable/jetbrains-mono": "^5.2.6",
+    "@fontsource-variable/source-sans-3": "^5.3.1",
     "@pagefind/default-ui": "^1.4.0",
     "@resvg/resvg-js": "^2.6.2",
     "@tailwindcss/vite": "^4.3.3",

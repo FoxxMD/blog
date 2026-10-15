@@ -31,7 +31,7 @@ const pageKeywords = [
   ...new Set(siteConfig.tags.concat(tags || []).map((word) => word.toLowerCase())),
 ].join(', ')
 const baseCssVars: { [key: string]: string } = {
-  'theme-font': siteConfig.font,
+  'theme-font': `'${siteConfig.font}'`,
   'ec-frm-frameBoxShdCssVal': 'none',
   'ec-frm-edTabBrdRad': '0',
   'ec-frm-edTabBarBrdCol':
