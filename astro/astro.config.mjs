@@ -33,9 +33,7 @@ export default defineConfig({
   trailingSlash: 'ignore',
   prefetch: true,
   markdown: {
-    syntaxHighlight: {
-      excludeLangs: ['mermaid']
-    },
+
     remarkPlugins: [
       [remarkDescription, { maxChars: 200 }],
       remarkReadingTime,
@@ -74,7 +72,7 @@ export default defineConfig({
     sitemap(),
     expressiveCode({
       themes: siteConfig.themes.include,
-      useDarkModeMediaQuery: false,
+      useDarkModeMediaQuery: true,
       defaultProps: {
         showLineNumbers: false,
         wrap: false,
