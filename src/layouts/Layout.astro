@@ -145,13 +145,7 @@ let generatedCss: string = cssLines.join('\n')
     <link rel="icon" type="image/png" sizes="96x96" href="/favicon-96x96.png" />
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
     <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
-    <script
-      is:inline
-      src="https://ry.foxxmd.dev/api/script.js"
-      data-site-id="1"
-      data-session-replay="true"
-      defer
-    ></script>
+    <script src="https://rybbit.foxxmd.io/api/script.js?siteId=1" defer></script>
     <link
       rel="alternate"
       type="application/rss+xml"
@@ -180,7 +174,10 @@ let generatedCss: string = cssLines.join('\n')
       // from the active theme's background luminance instead, which works in every theme mode.
       const root = document.documentElement
       const isDark = () => {
-        let hex = getComputedStyle(root).getPropertyValue('--theme-background').trim().slice(1)
+        let hex = getComputedStyle(root)
+          .getPropertyValue('--theme-background')
+          .trim()
+          .slice(1)
         if (hex.length <= 4) hex = [...hex].map((c) => c + c).join('') // #fff shorthand
         const [r, g, b] = [0, 2, 4].map((i) => parseInt(hex.slice(i, i + 2), 16))
         return 0.299 * r + 0.587 * g + 0.114 * b < 128
