@@ -38,22 +38,6 @@ const postsHaveSeries = sortedPosts.some((post) => post.data.series)
     )
   }
   {
-    postsHaveSeries && (
-      <section>
-        <BlockHeader>Series</BlockHeader>
-        <SeriesSection posts={sortedPosts} />
-      </section>
-    )
-  }
-  {
-    postsHaveTags && (
-      <section>
-        <BlockHeader>Tags</BlockHeader>
-        <TagsSection posts={sortedPosts} />
-      </section>
-    )
-  }
-  {
     sortedPosts.length > 0 && (
       <section>
         <BlockHeader>Latest Posts</BlockHeader>

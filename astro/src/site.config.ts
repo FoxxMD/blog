@@ -40,6 +40,16 @@ const config: SiteConfig = {
       url: '/posts',
     },
     {
+      name: 'Tags',
+      url: '/tags',
+    },
+    // this is where i'd put my series
+    // IF I HAD ANY
+    // {
+    //   name: 'Series',
+    //   url: '/series',
+    // },
+    {
       name: 'GitHub',
       url: 'https://github.com/FoxxMD',
       external: true,
