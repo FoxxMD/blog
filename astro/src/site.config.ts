@@ -67,8 +67,8 @@ const config: SiteConfig = {
     // These will be used to theme the entire site along with syntax highlighting.
     // To use light-dark-auto mode, only include a light and a dark theme in that order.
     include: [
-      'gruvbox-dark-hard',
-      'gruvbox-light-medium',
+      'github-light',
+      'vesper',
     ],
     // include: [
     //   'andromeeda',
