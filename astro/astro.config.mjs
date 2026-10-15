@@ -5,6 +5,7 @@ import sitemap from '@astrojs/sitemap'
 import mdx from '@astrojs/mdx'
 import { rehypeHeadingIds } from '@astrojs/markdown-remark'
 import rehypeAutolinkHeadings from 'rehype-autolink-headings'
+import remarkCustomHeaderId from 'remark-custom-header-id';
 import expressiveCode from 'astro-expressive-code'
 import { pluginLink } from 'expressive-code-links';
 import siteConfig from './src/site.config'
@@ -29,9 +30,12 @@ import mermaid from 'astro-mermaid';
 // https://astro.build/config
 export default defineConfig({
   site: siteConfig.site,
-  trailingSlash: siteConfig.trailingSlashes ? 'always' : 'never',
+  trailingSlash: 'ignore',
   prefetch: true,
   markdown: {
+    syntaxHighlight: {
+      excludeLangs: ['mermaid']
+    },
     remarkPlugins: [
       [remarkDescription, { maxChars: 200 }],
       remarkReadingTime,
@@ -42,6 +46,7 @@ export default defineConfig({
       remarkUnknownDirectives,
       remarkMath,
       remarkGemoji,
+      remarkCustomHeaderId
     ],
     rehypePlugins: [
       [rehypeHeadingIds, { headingIdCompat: true }],
