@@ -29,3 +29,5 @@ gems
 bundler
 extensions
 specifications
+astro/dist
+astro/.astro

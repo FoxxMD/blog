@@ -1,0 +1,328 @@
+---
+title: Crowdsec at Homelab Scale
+published: 2026-10-15
+draft: true
+description: How to take advantage of Crowdsec in an enthusiast, multi-host environment
+author: FoxxMD
+tags:
+  - tutorial
+  - docker
+  - crowdsec
+  - firewall
+  - waf
+  - security
+---
+
+[Crowdsec](https://www.crowdsec.net/) is moderately known within the homelab community but the majority of knowledge available, both in the [official documentation](https://docs.crowdsec.net/docs/intro/) and other community article sources, is surface-level and tends to frame its use in the context of a **single machine** where all the web traffic, monitoring, and blocking takes place.
+
+This is adequete for toy implementations and beginner usage but falls short in the homelab where:
+
+1. web traffic can be distributed across mutliple machines/networks
+2. not all machines are created equal in terms of traffic volume and compute capacity
+
+which is unfortunate because Crowdsec is *designed for distributed use* and it's where it shines the brightest. It's also the least documented and most confusing for scaling up.
+
+In this article I lay out how to think about Crowdsec for scaling up in the homelab, attempt to fill the void beyond single-instance usage, and provide practical examples for implementing your own homelab-scale Crowdsec solution.
+
+## Crowdsec?
+
+Crowdsec is a multi-component, network security solution designed to detect and prevent bad actors from exploiting your systems. At a high level, it does this by:
+
+* *proactively* blocking known bad actors from a crowdsourced database
+* *reactively* detecting suspicious network activity and blocking the associated actor by...
+  * monitoring logs from across your systems (web servers, ssh, syslogs, iis, iptables, etc.)
+  * matching attack patterns from log lines
+
+The solution is composed of:
+
+* a crowdsec binary that can be run natively or using a docker container
+  * takes configuration through config files
+  * can behave as individual components described in [Key Concepts](#key-concepts) below, or can do everything at the same time as an All In One (AIO) solution
+* [Remediation Components](#bouncers), software that communicate with the crowdsec binary to apply rules to network software in order to block actors
+
+### Why Should I Use It?
+
+**You have publicly exposed services without any reactive security.** It's a fact of life on the public internet that bad actors *will* be probing and trying to exploit your services, if they are accessible. It doesn't matter the size of the web server, what is hosted on it, or how obscure you try to make it: someone will always try to exploit it.
+
+Without reactive security an attacker can try to login or probe your services countless times without any retaliatory action by your system. Well-designed services may have rate limiting in place, or be hardened enough that no explotation can happen, but this will still allow slow brute forcing. And it's likely not 100% of your services are this hardened.
+
+**Proactive security is free.** Even if you use the minimal crowdsec setup you will still benefit from the [community blocklist](https://docs.crowdsec.net/docs/next/central_api/community_blocklist/) which consists of crowdsourced bad actors that will be blocked by your [chosen bouncers](#bouncers) immediately.
+
+**Benefit from pre-existing log parsers and scenarios.** You don't need any expert knowledge to parse logs from [numerous applications](https://app.crowdsec.net/hub/log-parsers) or detect the most common [attack scenarios.](https://app.crowdsec.net/hub/scenarios) [Crowdsec Hub](https://app.crowdsec.net/hub) is a centralized repository of first party and community-built configurations that can be downloaded and applied to your instances with one line.
+
+### Why Should I Not Use It?
+
+**If you do not have any services exposed to the internet** then Crowdsec may not be necessary for you. Using a properly configured Wireguard server or Tailscale for access to your network bypasses all of the common weakpoints an attacker would be able to probe.
+
+**If you need a full IDS/IPS[^detection]** then Crowdsec may not be the best choice. It does not operate on your actual network interfaces, do deep packet inspection, capture or correlate actor activity across the network, or provide audit logs for detected activity. You are better off with something like [Suricata](https://suricata.io/).
+
+**If you already use something like [fail2ban](https://github.com/fail2ban/fail2ban)** or have fail2ban configured with bespoke filtering Crowdsec may not have feature parity for you. Setting up fail2ban filters from scratch is much easier than creating your own log parsers and scenarios in Crowdsec.
+
+### Key Concepts
+
+#### Management Instance (LAPI)
+
+The CrowdSec application can be deployed with "management" enabled. CS docs refer to this functionality as [Local API (LAPI)](https://docs.crowdsec.net/u/user_guides/lapi_mgmt).
+
+The Management instance is the "brains" of CrowdSec's security engine. In most non-enterprise settings there is only one Management instance that all other components talk to.
+
+<details markdown=1>
+
+<summary>Details</summary>
+
+The management functionality enables the CS app to:
+
+* Recieve decisions ("ban IP X for Y minutes") from [Log Processors](#log-processor)
+* Register Log Processors (authenticate that a Log Processor can send it decisions)
+* Contain a database of all decisions that [Bouncers](#bouncers) can query to apply those decisions to block attackers
+  * IE the [firewall bouncer](https://docs.crowdsec.net/u/bouncers/firewall) on a machine can get all IPs that should be blocked, from the Management Instance, and add them to firewall rules for that machine
+* Send notifications for decisions it recieves (ping Slack that IP X is banned for Y minutes)
+* Enable you to use the crowdsec cli, [`cscli`](https://docs.crowdsec.net/docs/next/cscli/), to manage those decicions and which Log Processors are authenticated
+
+Notably, the Management instance does *not* need acquisition config or hub collections/scenarios/etc installed on it. That is only needed on Log Processors.
+
+<!-- TODO mermaid diagrams are not supported yet, rendered as code -->
+```mermaid
+flowchart TD
+
+    subgraph mgt[crowdsec app lapi]
+    dec[decisions] -->|bans IPs and stores| db[database]
+    mac[machines]
+    end
+
+    mac -->|authenticate| lp1
+    mac -->|authenticate| lp2
+
+    subgraph lp1[crowdsec app on server1]
+    buck1[scenario buckets from log processor] -->|sends alert| dec
+    end
+
+    subgraph lp2[crowdsec app on server2]
+    buck2[scenario buckets from log processor] -->|sends alert| dec
+    end
+```
+
+</details>
+
+#### Log Processor
+
+The CrowdSec application can be deployed with log processing (acquisition) and scenario monitoring functionality. CS docs refer to this functionality as [Log Processing](https://docs.crowdsec.net/docs/next/log_processor/intro).
+
+There may be many Log Processor instances of the Crowdsec application, for example one per host. Log Processors are the "senses" (see/hear/touch) of the CrowdSec "brain". They all communicate back to a Management instance.
+
+<details markdown=1>
+
+<summary>Details</summary>
+
+When the CS app is used for Log Processing it:
+
+* Has user-defined configuration to tell it what [Data Sources](https://docs.crowdsec.net/docs/next/log_processor/data_sources/intro) to consume, known as [acquistion](https://docs.crowdsec.net/docs/next/log_processor/intro#acquistions)
+  * This is anything from `.log` files [on disk](https://docs.crowdsec.net/docs/next/log_processor/data_sources/file), to tailing [docker containers](https://docs.crowdsec.net/docs/next/log_processor/data_sources/docker), to tailing [journald (systemd)](https://docs.crowdsec.net/docs/next/log_processor/data_sources/journald)
+* Installs and uses [Parsers](https://docs.crowdsec.net/docs/next/log_processor/parsers/intro) to understand the data consumed from Data Sources
+* Installs and uses [Scenarios](https://docs.crowdsec.net/docs/next/log_processor/scenarios/intro) to monitor the parsed data for attack events
+  * When a Scenario is triggered it sends a Decision to the [Management instance](#management-instance-lapi)
+
+Note: Data Source, Parsers, and Scenarios can be installed as bundles called [**Collections**](https://app.crowdsec.net/hub/collections).
+
+<!-- TODO mermaid diagrams are not supported yet, rendered as code -->
+```mermaid
+flowchart TD
+
+    subgraph lp[crowdsec app]
+    acquiconf[acqui.d config] -->|use traefik.log| acqui
+    acqui[acquisition] -->|parsers file and detects patterns| sc[scenario buckets]
+    end
+
+    subgraph traefik[traefik]
+    tlog[access log traefik.log] -->|reads log file| acqui
+    end
+
+     sc -->|send alert| mgt[crowdsec app lapi]
+```
+
+</details>
+
+#### Bouncers
+
+A Bouncer is an application, separate from the Crowdsec app, that is used to:
+
+* query and interpret Decisions from the [Management instance](#management-instance-lapi)
+* apply those decisions to an environment to block an attacker in some way
+
+Crowdsec docs refer to Boucers as [Remediation Components](https://docs.crowdsec.net/u/bouncers/intro). There may be many Bouncers, all communicating with a Management instance. Bouncers are the "weapons" used to react after the CrowdSec "brain" realizes there is an "attack" (decision from Log Processor).
+
+<details markdown=1>
+
+<summary>Details</summary>
+
+Some examples of bouncers, and how they use Management:
+
+* [Firewall](https://docs.crowdsec.net/u/bouncers/firewall) - gets all IPs from Decicions stored in the Management instance and applies them as `BLOCK` rules to a host's firewall application (`iptables` or `nftables`)
+* [Traefik](https://plugins.traefik.io/plugins/6335346ca4caa9ddeffda116/crowdsec-bouncer-traefik-plugin) - Installed as a middleware. When a request is intercepted it queries the Management instance for the request IP. If the IP is banned it returns a 403.
+
+CS develops and maintains a large list of Bouncers for all popular platforms.
+
+<!-- TODO mermaid diagrams are not supported yet, rendered as code -->
+```mermaid
+flowchart TD
+
+    subgraph mgt[crowdsec app lapi]
+    boun[bouncers] -->|create key| bkey[bouncer keys]
+    dec[decisions]
+    end
+
+    bkey <-->|Use key to authenticate| bouncer1
+
+    subgraph bouncer1[firewall on server1]
+    dec -->|pulls decision IPs to block| rules[firewall rules]
+    end
+```
+
+</details>
+
+## Why not use a Single Instance?
+
+##### **Log processing is compute intensive!**
+
+Crowdsec log parsing and scenario/pattern matching mainly uses regular expressions. Depending on what scenarios and parses are enabled the computation for using regex can be *expensive.* [^regexflags]
+
+I created a [self contained benchmark](https://github.com/FoxxMD/crowdsecBench) for measuring cpu usage based on volume. The test uses [k6](https://grafana.com/docs/k6/latest/) to generate load through a reverse proxy (traefik) and parse logs with minimal collections: [crowdsecurity/linux](https://app.crowdsec.net/hub/author/crowdsecurity/collections/linux) and [crowdsecurity/traefik](https://app.crowdsec.net/hub/author/crowdsecurity/collections/traefik) which includes the most common [http attack scenarios](https://app.crowdsec.net/hub/author/crowdsecurity/collections/base-http-scenarios).
+
+The benchmark is dockerized with a script to automate running and reproduction: [https://github.com/FoxxMD/crowdsecBench](https://github.com/FoxxMD/crowdsecBench)
+
+<details markdown=1>
+
+<summary>Benchmark</summary>
+
+**These results were generated with:**
+
+* **randomized URL and user agent**
+* **50 requests/sec**
+* **30 second load duration**
+
+**Raspberry Pi4**
+
+![pi4](/assets/img/crowdsec/plot_pi4.png)
+
+**Raspberry Pi5**
+
+![pi5](/assets/img/crowdsec/plot_pi5.png)
+
+**i5-6500T**
+
+![i5-6500T](/assets/img/crowdsec/plot_6500t.png)
+
+**i5-13400T**
+
+![i5-13400](/assets/img/crowdsec/plot_13400.png)
+
+</details>
+
+As you can see, while not disasterous at these volumes the CPU usage is not insignificant. **Especially for lower power machines that are common in homelabs.** All it would take is a spike of 100-200 requests over a few seconds to cause issues.
+
+Additionally, it's important to realize that log processing is an *asychronous* process in crowdsec so even if the *traffic* spike only lasts a few seconds it may be many more seconds before CPU usage recovers as crowdsec chugs through the unread logs at a slower rate than realtime.
+
+Now, compound that with cpu usage from web traffic being served and processing whatever non-trivial service is receiving the traffic and you have a recipe for a bottleneck that lasts much longer than the traffic that caused it.
+
+So instead of processing logs on the same machines where they are produced it is, in many cases, possible to offload log processing to a child processor (crowdsec app) on a different host entirely. This way:
+
+* processing occurs on a beefier host that can handle the spikes
+* any cpu bottlenecking will happen on a non-critical machine so your critical services continue to operate normally
+
+##### **Separate components make everything more reliable**
+
+Crowdsec requires restarting when acquistion sources or other config changes. For crowdsec in a docker container this means restarting the entire container.
+
+If you makes changes to config that are invalid or have an issue with acquistion this could mean that even though the LAPI would technically be fine to use it is not running because crowdsec could not start up. While it is not running your bouncer cannot get decisions.
+
+This, of course, also applies to machine availability. In a multi-host environment LAPI should be on the most stable machine on your network. Keeping LAPI on a stable machine while child/log processors on other machines are restarted means bouncers have better uptime.
+
+## Why Is this post needed?
+
+**Prior art for Crowdsec at homelab scale are insufficient.**
+
+<details markdown=1>
+
+<summary>Official docs describe concepts separately but implementation examples assume a single instance</summary>
+
+ There's a disconnect for new users when trying to match up what is the described in the documentation with what is immediately shown in code: [Architecture](https://docs.crowdsec.net/docs/next/intro#architecture) and [Concepts](https://docs.crowdsec.net/docs/next/concepts) describe individual components but then [acquisiton](https://docs.crowdsec.net/docs/next/log_processor/intro/) only shows reading files from a local directory, or [LAPI docs](https://docs.crowdsec.net/docs/next/local_api/configuration) mention different machines but doesn't give context on why you would have different machines or the full setup for two in a management/child relationship.
+
+</details>
+
+<details markdown=1>
+
+<summary>The official, multi-host documentation assumes expert knowledge</summary>
+
+They fail to consider if the reader has strong mental model of how Crowdsec works to begin with.
+
+The [guide](https://docs.crowdsec.net/u/user_guides/multiserver_setup/) provides links to getting started guides and some commands for getting log processors registered with LAPI but fails to convey to the user that the crowdsec app can be used for separate roles. It falls short with helping transform the mental model of "this is all one app on one machine" to "this app can operate independently for only one role and then communicate with another crowdsec app acting as management".
+
+The [blog post](https://www.crowdsec.net/blog/multi-server-setup) does a better job of explaining the architecture but assumes you are switching to postgres for a shared database which is not necessary if there is only one management instance. The post is more geared for an enterprise or large-scale deployment which is too overkill for homelab scale.
+
+</details>
+
+## Crowdsec at Homelab Scale
+
+Now, we'll take all the above context to design a Crowdsec implementataion for our contrived homelab that respects the heterogenous compute power of machines in our network.
+
+### Scenario
+
+* You have four machines in your lab:
+  * **High Power Server (HPS)** that is the main "workhorse". It has the most memory and most compute.
+  * **Low Power Server 1 (LPS1)** is a rasberry pi 4. You use it to **SSH** into your lab remotely.
+    * It is the most stable machine because remote access needs to be available, always
+  * **Low Power Server 2 (LPS2)** is a rasberry pi 4. It runs a **reverse proxy** where all external traffic is routed from. The traffic comes in through a router, or otherwise *not* a tunnel.
+  * **Low Power Server 3 (LPS3)** is a mini pc. It runs **Nextcloud**, but not through the reverse proxy (for our contrived example). The traffic comes in through a router.
+* All of the externally accessible machines (LPS1-3)
+  * have firewalls
+  * You want to use crowdsec to protect these machines based on the activity they get from external traffic
+
+### Architecture
+
+![crowdsec diagram for our lab](/assets/img/crowdsec/homelab-diagram-overview.png)
+
+* To prevent [compute-intensive log processing](#log-processing-is-compute-intensive) from occurring on LPS1/LPS2 we will use a "centralized" [log processor](#log-processor) on HPS to ingest logs from LPS1/LPS2 using [Docker](https://docs.crowdsec.net/docs/next/log_processor/data_sources/docker) [acquistion data sources](#log-processor).
+
+* SSH log volume is unlikely to be as high as web traffic, and its more difficult (but not impossible) to offload this to HPS, so we will process SSH using a separate log processor directly on LPS1.
+
+* LPS1 is our more stable machine so we will deploy our [CS Management Instance](#management-instance-lapi) here as well, so that it's more likely all other components will always be able to reach it.
+
+* On each LPS machine we will install a CS [Firewall](https://docs.crowdsec.net/u/bouncers/firewall) [Bouncer](#bouncers) that will talk to our Management Instance on LPS1.
+
+Using the above plan best takes advantage of what our homelab has to offer:
+
+* Log processing and Management are independent instances which makes our [system more reliable](#separate-components-make-everything-more-reliable).
+* Offloading log processing where possible avoids [bottlenecking](#log-processing-is-compute-intensive) the hosts running critical services, and takes advantage of the higher compute from our HPS machine.
+
+Additionally, connecting our Management Instance to the Central API (Crowdsec cloud) means we get access to the [community blocklist](https://docs.crowdsec.net/docs/next/central_api/community_blocklist/) to proactively block threats with our firewall bouncers.
+
+## Implementation
+
+### Create Management
+
+* Use auto validation if possible https://docs.crowdsec.net/u/user_guides/machines_mgmt#machine-auto-validation
+* Mention CSAPI
+* Exposed port for incoming machine/bouncer comms, unless overlay
+
+### Create Log Processor
+
+* disable lapi with env
+* auto register vs. register single
+* discuss collections
+  * discuss `DISABLED_` and performance optimizations
+* explain acquis.d usage
+* explain docker-socket-proxy for remote aquisition
+  * explain tail container for physical logs
+* use `cscli metrics` to verify acquisition
+
+### Create Bouncer
+
+* create bouncer api key in Management
+* install bouncer component or configure for service
+
+___
+
+## Footnotes
+
+[^detection]: Intrustion **Detection** System and Intrustion **Prevention** System
+[^regexflags]: There are some [experimental feature flags](https://www.crowdsec.net/blog/increasing-performance-crowdsec-1-5) that can be used to improve performance for regex but even with them enabled there is the potential for bottlenecking CPU usage on the host, depending on traffic volume and the compute power of your cpu.
