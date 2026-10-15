@@ -24,6 +24,7 @@ import remarkMath from 'remark-math' /* for latex math support */
 import rehypeKatex from 'rehype-katex' /* again, for latex math support */
 import remarkGemoji from './src/plugins/remark-gemoji' /* for shortcode emoji support */
 import rehypePixelated from './src/plugins/rehype-pixelated' /* Custom plugin to handle pixelated images */
+import mermaid from 'astro-mermaid';
 
 // https://astro.build/config
 export default defineConfig({
@@ -75,6 +76,17 @@ export default defineConfig({
       },
       plugins: [pluginLineNumbers(), pluginLink()],
     }), // Must come after expressive-code integration
+    mermaid({
+      theme: 'default',
+      autoTheme: true,
+      mermaidConfig: {
+        flowchart: {
+          // does not seem to work
+          //layout: 'TD'
+        }
+      }
+
+    }),
     mdx(),
   ],
   experimental: {
