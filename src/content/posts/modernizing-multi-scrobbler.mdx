@@ -486,7 +486,7 @@ From sketch:
 
 To implementation:
 
-![implementation1](/assets/img/msupdate/ms-timeline.png)
+![implementation1](/assets/img/msupdate/ms-timeline.jpg)
 ![implementation-error](/assets/img/msupdate/ms-mbemptyquery.png)
 
 This worked out quite well! Transform steps are a nested timeline within the main Play events timeline. For both, using [`@pierre/diffs`](https://github.com/pierrecomputer/pierre) to visualize line-by-line differences and [`json-diff-ts`](https://github.com/ltwlf/json-diff-ts) to apply changes between steps in order to visualize the final rendered gives users a clear display of how their scrobble data changes over time.
@@ -498,21 +498,18 @@ After trialing the timeline, the rest of the redesign *mostly* fell in to place 
 The landing page retained some of its old look, with summaries of Source/Client being listed in a *now* responsive design that is friendly for both mobile and desktop.
 
 <ImageCompare
-  before="/assets/img/msupdate/old-dashboard.jpg"
-  after="/assets/img/msupdate/ms-componentlist.png"
+  before="/assets/img/msupdate/newms-componentlist-old.jpg"
+  after="/assets/img/msupdate/newms-componentlist-new.jpg"
   beforeAlt="old dashboard"
   afterAlt="new"
   labels={["old","new"]}
   start={40}
 />
 
-<img src="/assets/img/msupdate/old-dashboard.jpg" alt="old dashboard" width="600" />
-_old landing_
-<img src="/assets/img/msupdate/ms-componentlist.png" alt="new dashboard" width="600" />
+<img src="/assets/img/msupdate/ms-componentlist.png" alt="new dashboard desktop" width="800" />
 _new landing on mobile_
-<img src="/assets/img/msupdate/ms-componentlistdesktop.png" alt="new dashboard desktop" width="800" />
-_new landing on desktop_
-![live indicators](/assets/img/msupdate/ms-liveupdates.png)
+
+<img src="/assets/img/msupdate/ms-liveupdates.png" alt="live indicators" width="800" />
 _real time update indicators_
 
 Critically, though, all of the actions from the old landing are gone, as well as the logs. One of the lessons learned from my design friend was the concept of [**progressive disclosure**](https://en.wikipedia.org/wiki/Progressive_disclosure): only present the information that is required for the current task a user is doing.
@@ -549,10 +546,14 @@ More progressive disclosure here: Instead of displaying all possible actions for
 
 In the old UI the Plays for a Source/Client were on different pages separated by type (scrobbled, failed).
 
-<img src="/assets/img/msupdate/old-recentlyplayed.jpg" alt="old recently played" width="700" />
-_Recently played Plays on a Source in the old UI_
-
 Now, all associated Plays are unified into a single view with the type of Play represented by a colorful state badge. The type of Play can be filtered, along with time played at, and other attributes, in a virtual list with infinite loading for easier navigation on mobile.
+
+<ImageCompare
+  before="/assets/img/msupdate/newms-plays-old.jpg"
+  after="/assets/img/msupdate/newms-plays-new.jpg"
+  labels={["old","new"]}
+  start={40}
+/>
 
 This gives users a cognitively easy way to check on any specific Play, or EX see only problematic Plays by filtering by Failed, without having to leave the current view.
 
@@ -565,14 +566,16 @@ Once again, progressive disclosure reveals only the required information to make
 
 The unexpanded Play shows a summary of the track data and state. The state badge also shows a primary action if the state contextually needs it.
 
-Within an expanded Play, relevant information is surfaced if necessary based on the state of the Play.
+Within an expanded Play, relevant information is surfaced if necessary based on the state of the Play. This is a *huge* improvement over the old UI which showed only a preview of the error without any context.
 
-<img src="/assets/img/msupdate/ms-playfailed.png" alt="failed played" width="700" />
-_Play badge shows retry button when in failed state, surfaces error, and indicates what section error occurred in_
 
-This is a *huge* improvement over the old UI which showed only a preview of the error without any context.
-
-<img src="/assets/img/msupdate/old-failed.jpg" alt="old failed" width="600" />
+<ImageCompare
+  class="ratio"
+  after="/assets/img/msupdate/ms-playfailed.png"
+  before="/assets/img/msupdate/old-failed.jpg"
+  labels={["old","new"]}
+  start={40}
+/>
 
 ## Closing Thoughts
 

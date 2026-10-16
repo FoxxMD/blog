@@ -637,3 +637,9 @@ img.slide {
 html[data-theme='vesper'] .swiper-pagination-bullet {
   background: rgba(233, 233, 233, 1);
 }
+
+.ratio .ma-imgcmp__before,
+.ratio .ma-imgcmp__after {
+  aspect-ratio: 16/9;
+  object-position: top;
+}
