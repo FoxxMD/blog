@@ -102,7 +102,7 @@ Any non-existent **bind-mounted** directories, or explicit files, in your compos
 
 These volumes are *not* part of Periphery State and cannot be fixed by Sync Resource.
 
-<details markdown="1">
+<details>
 
 <summary>Example</summary>
 
@@ -169,7 +169,7 @@ For simple stack matching based on name, wildcard, or regex (no lookbehind/backt
 
 For more advanced filtering create an **Action** using the snippet below. Fill out the arrays at the top of the snippet with your **exclude** filter values.
 
-<details markdown="1">
+<details>
 
 <summary>Action Snippet</summary>
 
@@ -293,7 +293,7 @@ In a **Stack** config the **Run Directory** only determines the working director
 
 Komodo does not do anything "smart" when cloning the repo for the Stack, even if it knows the Run Directory. It's not possible for it to know if you only use files from that directory for the Stack.
 
-<details markdown="1">
+<details>
 
 <summary>Why Isn't it Smarter?</summary>
 
@@ -353,7 +353,7 @@ This is already "how it works". For any project built from a dockerfile/compose.
 
 </details>
 
-<details markdown="1">
+<details>
 
 <summary>Example of Git Repo and Komodo Stack Directory Structure</summary>
 
@@ -373,7 +373,7 @@ Git Repo
 
 Komodo config defines root directory (for Komodo) at `/opt/komodo` and you create a Stack named **immich** that uses the git repo from above with run directory `stacks/immich`...
 
-<details markdown="1">
+<details>
 
 <summary>Immich Stack TOML example</summary>
 
@@ -433,7 +433,7 @@ Starting with [**v1.17.4**](https://github.com/moghtech/komodo/releases/tag/v1.1
 
 Expand the sections below for instructions on how to use both:
 
-<details markdown="1">
+<details>
 
 <summary>Server Shell</summary>
 
@@ -459,7 +459,7 @@ This terminal can also be used for general shell access.
 
 </details>
 
-<details markdown="1">
+<details>
 
 <summary>Container Shell</summary>
 
@@ -576,7 +576,7 @@ There are several popular registry images to choose from:
 
 **By default Docker will only pull from registries using a secure connection (`https`).** You will need to host your registry behind a real domain with some kind of internal access like a reverse proxy. You may want to check out my post on [LAN-Only DNS](/posts/redundant-lan-dns) and [Traefik](/posts/migrating-to-traefik) as a jumping off point if you don't already have this setup.
 
-<details markdown="1">
+<details>
 
 <summary>Using a Registry with an insecure connection</summary>
 
@@ -649,7 +649,7 @@ First, You'll need an **API Key and Secret** for a Komodo User. (Settings -> Use
 I would recommend creating a new "Read Only" Service User. Give it only permissions for Server/Stack Read. Create the API Key and copy the Secret as it will not be shown again.
 :::
 
-<details markdown="1">
+<details>
 
 <summary>Custom API Widget Template</summary>
 
@@ -734,7 +734,7 @@ If you are critically space constrained the size on disk for each stack may be a
 
 The bash script below can be used to "fuzzy search" for containers by name and then exec into a shell in that container.
 
-<details markdown="1">
+<details>
 
 <summary>Example Usage</summary>
 
@@ -764,7 +764,7 @@ $ ./dex.sh sonarr /bin/ash
 
 </details>
 
-<details markdown="1">
+<details>
 
 <summary>Bash Script</summary>
 
@@ -852,7 +852,7 @@ As long as `DOCKER_DATA` is set as an ENV on each host then the compose file bec
 
 To do this you'll need to set this ENV in either the shell used by Periphery (`.bashrc` or `.profile`), set in the Periphery's docker container ENVs, or set it in the [systemd configuration](https://www.baeldung.com/linux/systemd-services-environment-variables) for a [systemd periphery agent.](https://github.com/mbecker20/komodo/blob/main/scripts/readme.md#periphery-setup-script)
 
-<details markdown="1">
+<details>
 
 <summary>Setting ENV for systemd periphery</summary>
 
@@ -874,7 +874,7 @@ EX
 
 </details>
 
-<details markdown="1">
+<details>
 
 <summary>Setting ENV for docker periphery</summary>
 

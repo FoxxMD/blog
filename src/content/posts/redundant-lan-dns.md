@@ -140,7 +140,7 @@ In all of the setup/configurations examples replace these values based on how yo
 * **Both hosts that will run keepalived must have packet forwarding and nonlocal address binding enabled.**
   * If you don't want to set this up you can ignore all the keepalived and secondary record/syncing steps in this guide, using only a single technitium server. [I wouldn't recommend it, though!](#high-availability)
 
-<details markdown="1">
+<details>
 
 <summary>Enabling Packet Forwarding and Nonlocal Binding for Linux</summary>
 
@@ -196,7 +196,7 @@ I cover setting up [Traefik as a reverse proxy](/posts/migrating-to-traefik) in 
 
 These stacks should be created on **two physically different machines.**
 
-<details markdown="1">
+<details>
 
 <summary>Technitium Primary</summary>
 
@@ -244,7 +244,7 @@ CHECK_PORT=53
 
 </details>
 
-<details markdown="1">
+<details>
 
 <summary>Technitium Secondary</summary>
 
@@ -376,7 +376,7 @@ I'm assuming that you have been able to reach each Technitium dashboard through 
 
 Use one the command line tools below to test queries to your Technitium instances:
 
-<details markdown="1">
+<details>
 
 <summary>Linux and macOS</summary>
 
@@ -416,7 +416,7 @@ example.com.		155	IN	A	96.7.128.198
 
 </details>
 
-<details markdown="1">
+<details>
 
 <summary>Windows</summary>
 
@@ -556,7 +556,7 @@ After some time you should see the Dashboard in the primary Technitium before to
 
 If you have an existing Pi-hole configuration and _really really_ do not want to switch to Technitium (it can do the same full ad-blocking with upstream DNS like Pi-hole) you can modify dnsmasq using one of the solutions from the [above-linked discussion](https://discourse.pi-hole.net/t/support-wildcards-in-local-dns-records/32098/12) or  manage your domains _without the benefit of wildcards_ by using Pi-hole's Local DNS features. [Here's another article explaining how to use those features.](https://www.techaddressed.com/tutorials/using-pi-hole-local-dns/#dns)
 
-<details markdown="1">
+<details>
   <summary>TL;DR Domain Management in Pi-hole</summary>
 
 Open the Pi-hole dashboard, then:

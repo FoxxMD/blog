@@ -217,7 +217,7 @@ UPDATE: After using Komodo for 3+ months I have changed to using [systemd agents
 
 After each agent is created it's a simple process to add as a [Server](https://komo.do/docs/resources#server) resource in the komodo core interface.
 
-<details markdown="1">
+<details>
 
 <summary>A Note on Security and Non-Root Periphery Containers</summary>
 
@@ -227,7 +227,7 @@ Periphery image can _mostly_ be run normally just by specifying `user` in the co
 
 In summary, here is an example compose file for a non-root Periphery container using docker-socket-proxy that would be run on one of your servers:
 
-<details markdown="1">
+<details>
 
 ```yaml title="compose.yaml"
 services:
@@ -311,7 +311,7 @@ In Komodo, navigate to `Settings -> Providers -> Git Accounts` and then create a
 
 To reduce boilerplate and add convenience we will use a Linked Repo for all of our Stacks. A Linked Repo is just a normal Komodo Repo that Komodo can re-use for Git Repo Stacks. It's not *required* to use a Linked Repo but it definitely makes things easier.
 
-<details markdown="1">
+<details>
 
 <summary>What is a Linked Repo and Why Use It?</summary>
 
@@ -404,7 +404,7 @@ Before stopping/destroying your old containers and starting the new Stack read t
 
 The **Environment** section in your Stack's `Config` tab will pass ENVs to the _compose_ command used to create the stack. Note that this is different than ENVs passed to each service: the Stack `Environment` variables are [only for use in `compose.yaml`](https://docs.docker.com/compose/how-tos/environment-variables/variable-interpolation/) unless you explicitly set them in each service's `environment:` section or use [`env_file: .env`](https://docs.docker.com/compose/how-tos/environment-variables/set-environment-variables/#use-the-env_file-attribute).
 
-<details markdown="1">
+<details>
 
 <summary>Example of this difference</summary>
 
@@ -547,7 +547,7 @@ Starting with [**v1.17.4**](https://github.com/moghtech/komodo/releases/tag/v1.1
 
 Expand the sections below for instructions on how to use both:
 
-<details markdown="1">
+<details>
 
 <summary>Server Shell</summary>
 
@@ -573,7 +573,7 @@ This terminal can also be used for general shell access.
 
 </details>
 
-<details markdown="1">
+<details>
 
 <summary>Container Shell</summary>
 
@@ -611,7 +611,7 @@ As long as `DOCKER_DATA` is set as an ENV on each host then the compose file bec
 
 To do this you'll need to set this ENV in either the shell used by Periphery (`.bashrc` or `.profile`), set in the Periphery's docker container ENVs, or set it in the [systemd configuration](https://www.baeldung.com/linux/systemd-services-environment-variables) for a [systemd periphery agent.](https://github.com/mbecker20/komodo/blob/main/scripts/readme.md#periphery-setup-script)
 
-<details markdown="1">
+<details>
 
 <summary>Setting ENV for systemd periphery</summary>
 
@@ -633,7 +633,7 @@ EX
 
 </details>
 
-<details markdown="1">
+<details>
 
 <summary>Setting ENV for docker periphery</summary>
 

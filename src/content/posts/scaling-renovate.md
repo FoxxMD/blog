@@ -98,7 +98,7 @@ Nice! Now all your Stacks are tagged, we will use this in the Action created bel
 
 Create a new Komodo **Action** named `batch-deploy-changed-and-exclude` and copy-paste the contents of the (expanded) block below:
 
-<details markdown="1">
+<details>
 
 <summary>Batch Deploy If Changed Except Contents</summary>
 
@@ -255,7 +255,7 @@ When you are ready, set the args to: `{ "TAGS": "critical-infra", "COMMIT": true
 
 Create a new Komodo **Action** named `Renovate Git Commit` and copy-paste the contents of the (expanded) block below:
 
-<details markdown="1">
+<details>
 
 <summary>Renovate Git Commit Action Content</summary>
 
@@ -658,7 +658,7 @@ This is the *full* `renovate.json` config I am using on my Komodo monorepo. It i
 
 **You will need to modify it for your repository before use** (things like `assignee` and updating/removing the [cache rules](#optional-reducing-registry-api-calls-with-caching)) but it can be used as a reference point.
 
-<details markdown="1">
+<details>
 
 <summary>renovate.json</summary>
 

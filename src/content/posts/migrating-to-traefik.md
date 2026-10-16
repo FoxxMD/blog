@@ -160,7 +160,7 @@ Despite more complex Nginx confs requiring more work to emulate with Traefik, **
 
 Below is a sample SWAG `.conf` of an nginx `server` directive for sonarr, which is representative of the "basic" SWAG subdomain conf and covers ~90% of use cases.
 
-<details markdown="1">
+<details>
 
 <summary>Expand Full Sample</summary>
 
@@ -398,7 +398,7 @@ I have published a guide for setting up local DNS. If you are setting up traefik
 
 When using [Cloudflare Tunnels](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/), no cert generation/management is required. 
 
-<details markdown="1">
+<details>
 
 <summary>Why?</summary>
 
@@ -1436,7 +1436,7 @@ Whatever you end up doing, it's best to keep similar features together:
 
 [Static config](#static-config) tends to have the most lists and nested properties. This becomes cumbersome to define in CLI as each section needs to be repeated for each nested property. It's also likely to be the largest block of config and benefits from being layed out visually in YAML as easier to read.
 
-<details markdown="1">
+<details>
 
 <summary>CLI vs File Example</summary>
 
@@ -1671,11 +1671,11 @@ Using these networks allows all related services to be addressed by their **cont
 
 You *should* use user-defined networks if you plan to implement the [separating internal/external sevices section](#separating-internalexternal-services) but for all the other sections its not *required* (but strongly encouraged!). If you do not want to use external networks you can simply replace instances of `container_name:internal_port` in stacks/ENVs with `host_ip:published_port`.
 
-<details markdown="1">
+<details>
 
 <summary>Examples of Differences</summary>
 
-<details markdown="1">
+<details>
 
 <summary>User-Defined Networks</summary>
 
@@ -1713,7 +1713,7 @@ networks:
 
 </details>
 
-<details markdown="1">
+<details>
 
 <summary>Default Bridge Networking</summary>
 
@@ -1804,7 +1804,7 @@ Swarm nodes run as either a [manager](https://docs.docker.com/engine/swarm/how-s
 
 Therefore, you should only run Swarm if you can have an [**odd** number of managers online.](https://docs.docker.com/engine/swarm/admin_guide/#add-manager-nodes-for-fault-tolerance)
 
-<details markdown="1">
+<details>
 
 <summary>Simple Manager-Worker Count Table</summary>
 

@@ -209,7 +209,7 @@ Pi-hole is a great solution for a dns-based/network-wide adblock but, IMO, it's 
 
 If you have an existing Pi-hole configuration and _really really_ do not want to switch to Technitium (it can do the same full ad-blocking with upstream DNS like Pi-hole) you can modify dnsmasq using one of the solutions from the [above-linked discussion](https://discourse.pi-hole.net/t/support-wildcards-in-local-dns-records/32098/12) or  manage your domains _without the benefit of wildcards_ by using Pi-hole's Local DNS features. [Here's another article explaining how to use those features.](https://www.techaddressed.com/tutorials/using-pi-hole-local-dns/#dns)
 
-<details markdown="1">
+<details>
   <summary>TL;DR Domain Management in Pi-hole</summary>
 
 Open the Pi-hole dashboard, then:
@@ -375,7 +375,7 @@ If you use additional (public) domains and have subdomains you want to remain LA
 
 Every "remote" docker host, IE any docker host that is connected to by IP address from SWAG, should have limited permissions rather than full-access. Start a [docker-socket-proxy](https://github.com/linuxserver/docker-socket-proxy) container on each remote host with `CONTAINERS=1` env/permission.
 
-<details markdown="1">
+<details>
   <summary>docker-socket-proxy docker-compose.yml</summary>
 
 ```yaml title="docker-compose.yml"
@@ -399,7 +399,7 @@ services:
 
 #### All Docker hosts are remote
 
-<details markdown="1">
+<details>
   <summary>Click to expand</summary>
 
 Assumptions:
@@ -450,7 +450,7 @@ services:
 
 #### Local Docker Host + 1 Remote Docker Host
 
-<details markdown="1">
+<details>
   <summary>Click to expand</summary>
 
 Assumptions:

@@ -205,7 +205,7 @@ Modify the `labels` for `backend` service from your Rybbit compose file, adding 
 ```
 
 
-<details markdown="1">
+<details>
 
 <summary>Dynamic File Config Example</summary>
 

@@ -119,7 +119,7 @@ echo "This is a variable: $FOO $BAR $HARD"
 
 Interpolate key-values from `.env` into a compose file. No environmental variables are passed to the service.
 
-<details markdown="1">
+<details>
 
 ```yaml title="compose.yaml"
 services:
@@ -153,7 +153,7 @@ This is a variable:
 
 Interpolate key-values from `.env` into a compose file. Environmentable variables are passed to the service using `environment:` where some come from interpolated `.env`
 
-<details markdown="1">
+<details>
 
 ```yaml title="compose-environment.yaml"
 services:
@@ -192,7 +192,7 @@ This is a variable: aSecret alwaysHere
 
 Interpolate key-values from `add.env` into a compose file. Environmentable variables are passed to the service using `environment:` where some come from interpolated `add.env`
 
-<details markdown="1">
+<details>
 
 ```yaml title="compose-environment.yaml"
 services:
@@ -232,7 +232,7 @@ This is a variable: someBar alwaysHere
 
 Interpolate key-values from `add.env` into a compose file. Environmentable variables are passed to the service using `environment:` where some come from interpolated `add.env`
 
-<details markdown="1">
+<details>
 
 ```yaml title="compose-environment.yaml"
 services:
@@ -279,7 +279,7 @@ Uses [`env_file:`](https://docs.docker.com/compose/how-tos/environment-variables
 Compare this to the [`compose.yaml` with `.env` example](#compose-with-dot-env)
 :::
 
-<details markdown="1">
+<details>
 
 ```yaml title="compose-envfile.yaml"
 services:
@@ -314,7 +314,7 @@ This guide and examples have so far focused on using `.env` for interpolating en
 
 This example interpolates `.env` key-values into `${VERSION}` to define what tag to use for a theoretical image.
 
-<details markdown="1">
+<details>
 
 ```yaml title="compose.yaml"
 services:
@@ -360,7 +360,7 @@ Komodo takes the contents of the **Environment** section in your Komodo Stack an
 
 After this is done it then runs `docker compose up --env-file .env` and includes any additional files you specified in the **Additional Env Files** section of your stack.
 
-<details markdown="1">
+<details>
 
 <summary>Variables Example</summary>
 
@@ -400,7 +400,7 @@ The different names for all the keys in the above example are to help convey tha
 
 </details>
 
-<details markdown="1">
+<details>
 
 <summary>Komodo Compose Up Flow</summary>
 
