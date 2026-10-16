@@ -350,11 +350,11 @@ article img {
 
   ul,
   ol {
-    @apply pl-8 sm:pl-9.5;
+    @apply pl-4 sm:pl-5;
   }
 
   li {
-    @apply pl-2 my-4 marker:text-list;
+    @apply pl-2 my-2 marker:text-list;
   }
 
   ul li {
