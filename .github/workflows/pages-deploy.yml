@@ -29,6 +29,18 @@ jobs:
         with:
           # path: . # The root location of your Astro project inside the repository. (optional)
           node-version: 24 # The specific version of Node that should be used to build your site. Defaults to 24. (optional)
+          # Expressive Code bakes the <link href="/_astro/ec.{hash}.css"> tag into each post's rendered HTML
+          # The cache entry for a post is keyed on that post's content, not on Expressive Code's CSS output.
+          # If the EC CSS changes but astro.config doesn't, the cache isn't cleared.
+          # This can happen through a dependency bump, theme or plugin changes, or ec.config.
+          # Posts restored from the cache keep the old hash, freshly rendered posts get the new one, and only the new CSS file gets emitted.
+          #
+          # so disable cache so every build is fresh
+          cache: false
+          #
+          #  build-cmd: rm -f node_modules/.astro/data-store.json && npm run build
+          #^^ this may also work to keep optimized images but delete cached content?
+
         # package-manager: pnpm@latest # The Node package manager that should be used to install dependencies and build your site. Automatically detected based on your lockfile. (optional)
         # build-cmd: pnpm run build # The command to run to build your site. Runs the package build script/task by default. (optional)
         # env:
