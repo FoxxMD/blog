@@ -23,6 +23,7 @@ import {
   SwiperButtonNext,
   SwiperPagination,
 } from 'astro-swiper'
+import Accordion from '../../components/Accordion.astro'
 
 This three-part series details the context, design, and implementation decisions I made to modernize my 6 year old software project.
 
@@ -152,9 +153,7 @@ Despite its lack of charm and modern functionality, the frontend _does work_. Mo
 
 One of the last features I [highlighted](#multi-scrobbler-today) is relatively new, [**Scrobble Transforms.**](https://docs.multi-scrobbler.app/configuration/transforms/) This feature allows users to configure automated steps to modify their data in any individual Source/Client, before it is sent anywhere else. The steps can be hooked into various "stages" of the data lifecycle allowing very granular control of how the data is modified, when, where, and how.
 
-<details>
-
-<summary>Why Would You Do this?</summary>
+<Accordion title="Why Would You Do this?">
 
 Some reasons a user might want to do this (and what it would do):
 
@@ -162,7 +161,7 @@ Some reasons a user might want to do this (and what it would do):
 - ID3 tags in your music collection are dirty or have repeating garbage IE `[YourMusicSource.com] My Artist - My Title` => get rid of `[YourMusicSource.com]`
 - Correcting _any_ track to match to the "canonical" version found on [Musicbrainz](https://musicbrainz.org/) so all data is normalized
 
-</details>
+</Accordion>
 
 This feature is powerful and extremely useful for users who want tight control over how their data is presented. However, it also adds a degree of uncertainty to what MS is actually doing. While MS does log everything, the logs are mostly meant for dev debugging, are ephemeral, noisy, and don't present a clear, linear story of what a Transformer is doing.
 
