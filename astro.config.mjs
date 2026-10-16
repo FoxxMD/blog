@@ -12,22 +12,23 @@ import codeblocks from 'starlight-codeblocks/astro';
 import siteConfig from './src/site.config'
 //import { pluginLineNumbers } from '@expressive-code/plugin-line-numbers'
 //import { pluginCollapsible } from 'expressive-code-collapsible'
-import remarkDescription from './src/plugins/remark-description' /* Add description to frontmatter */
-import remarkReadingTime from './src/plugins/remark-reading-time' /* Add reading time to frontmatter */
-import rehypeTitleFigure from './src/plugins/rehype-title-figure' /* Wraps titles in figures */
+import remarkDescription from './src/plugins/remark-description'/* Add description to frontmatter */
+import remarkReadingTime from './src/plugins/remark-reading-time'/* Add reading time to frontmatter */
+import rehypeTitleFigure from './src/plugins/rehype-title-figure'/* Wraps titles in figures */
 import { remarkGithubCard } from './src/plugins/remark-github-card'
 import { fromHtmlIsomorphic } from 'hast-util-from-html-isomorphic'
 import rehypeExternalLinks from 'rehype-external-links'
-import remarkDirective from 'remark-directive' /* Handle ::: directives as nodes */
+import remarkDirective from 'remark-directive'/* Handle ::: directives as nodes */
 import rehypeUnwrapImages from 'rehype-unwrap-images'
-import { remarkAdmonitions } from './src/plugins/remark-admonitions' /* Add admonitions */
-import remarkCharacterDialogue from './src/plugins/remark-character-dialogue' /* Custom plugin to handle character admonitions */
-import remarkUnknownDirectives from './src/plugins/remark-unknown-directives' /* Custom plugin to handle unknown admonitions */
-import remarkMath from 'remark-math' /* for latex math support */
-import rehypeKatex from 'rehype-katex' /* again, for latex math support */
-import remarkGemoji from './src/plugins/remark-gemoji' /* for shortcode emoji support */
-import rehypePixelated from './src/plugins/rehype-pixelated' /* Custom plugin to handle pixelated images */
+import { remarkAdmonitions } from './src/plugins/remark-admonitions'/* Add admonitions */
+import remarkCharacterDialogue from './src/plugins/remark-character-dialogue'/* Custom plugin to handle character admonitions */
+import remarkUnknownDirectives from './src/plugins/remark-unknown-directives'/* Custom plugin to handle unknown admonitions */
+import remarkMath from 'remark-math'/* for latex math support */
+import rehypeKatex from 'rehype-katex'/* again, for latex math support */
+import remarkGemoji from './src/plugins/remark-gemoji'/* for shortcode emoji support */
+import rehypePixelated from './src/plugins/rehype-pixelated'/* Custom plugin to handle pixelated images */
 import mermaid from 'astro-mermaid'
+import moonarc from 'moonarc';
 
 // https://astro.build/config
 export default defineConfig({
@@ -74,27 +75,23 @@ export default defineConfig({
   vite: {
     plugins: [tailwindcss()],
   },
-  integrations: [
-    sitemap(),
-    codeblocks({
-      codeTabs: {},
-      expandable: { lines: 12, auto: 30 },
-      expressiveCode: {
-        themes: siteConfig.themes.include,
-        useDarkModeMediaQuery: true,
-      }
-    }),
-    // Must come after expressive-code integration
-    mermaid({
-      theme: 'neutral',
-      autoTheme: true,
-      mermaidConfig: {
-        flowchart: {
-        },
+  integrations: [sitemap(), codeblocks({
+    codeTabs: {},
+    expandable: { lines: 12, auto: 30 },
+    expressiveCode: {
+      themes: siteConfig.themes.include,
+      useDarkModeMediaQuery: true,
+    }
+  }), // Must come after expressive-code integration
+  mermaid({
+    theme: 'neutral',
+    autoTheme: true,
+    mermaidConfig: {
+      flowchart: {
       },
-    }),
-    mdx(),
-  ],
+    },
+  }), mdx(),
+  moonarc()],
   experimental: {
     contentIntellisense: true,
   },

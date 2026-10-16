@@ -12,6 +12,8 @@ tags:
   - typescript
   - development
 ---
+import ImageCompare from '@moonarc/core/ImageCompare';
+import { Swiper, SwiperWrapper, SwiperSlide, SwiperButtonPrev, SwiperButtonNext, SwiperPagination } from "astro-swiper";
 
 ## Humble Beginnings
 
@@ -53,20 +55,65 @@ It consists of a:
 * one page for displaying recently played/scrobbled per Source/Client
 * one page for displaying failed scrobbles per Client
 
-<img src="/assets/img/msupdate/old-dashboard.jpg" alt="old dashboard" width="700" />
-_Landing page_
 
-<img src="/assets/img/msupdate/old-recentlyplayed.jpg" alt="old recently played" width="700" />
-_Navigating to Discovered/Scrobbled tracks shows a static page with a simple list of all Plays *in-memory* with some simple formatting._
-
-<img src="/assets/img/msupdate/old-failed.jpg" alt="old recently played" width="700" />
-_Navigating to Failed Scrobbles renders a simple list of the track and mono-font display of some of the attributes of an error stored on the track._
+<Swiper
+  options={{
+  autoHeight: true,
+      pagination: {
+      el: ".swiper-pagination",
+    },
+      navigation: {
+      nextEl: ".swiper-button-next",
+      prevEl: ".swiper-button-prev",
+    }
+  }}>
+  <SwiperWrapper>
+    <SwiperSlide>
+      <img src="/assets/img/msupdate/old-dashboard.jpg" alt="sketch rough" />
+      _Landing page_
+    </SwiperSlide>
+    <SwiperSlide>
+      <img src="/assets/img/msupdate/old-recentlyplayed.jpg" alt="sketch detailed"/>
+      _Navigating to Discovered/Scrobbled tracks shows a static page with a simple list of all Plays *in-memory* with some simple formatting._
+    </SwiperSlide>
+    <SwiperSlide>
+      <img src="/assets/img/msupdate/old-failed.jpg" alt="old recently played" />
+      _Navigating to Failed Scrobbles renders a simple list of the track and mono-font display of some of the attributes of an error stored on the track._
+    </SwiperSlide>
+  </SwiperWrapper>
+    <SwiperButtonPrev />
+  <SwiperButtonNext />
+  <SwiperPagination />
+</Swiper>
 
 You've probably already guessed but this site does not handle small/mobile screens very well. It is *readable* but certainly not a good experience.
 
-<img src="/assets/img/msupdate/old-dashboardmobile.jpg" alt="old dashboard mobile" width="400" /><!-- TODO chirpy image classes not supported: .w-25 .normal -->
-<img src="/assets/img/msupdate/old-recentlyplayedmobile.jpg" alt="old recently played mobile" width="400" /><!-- TODO chirpy image classes not supported: .w-25 .normal -->
-<img src="/assets/img/msupdate/old-failedscrobblesmobile.jpg" alt="old failed mobile" width="400" /><!-- TODO chirpy image classes not supported: .w-25 .normal -->
+<Swiper
+  options={{
+  autoHeight: true,
+      pagination: {
+      el: ".swiper-pagination",
+    },
+      navigation: {
+      nextEl: ".swiper-button-next",
+      prevEl: ".swiper-button-prev",
+    }
+  }}>
+  <SwiperWrapper>
+    <SwiperSlide>
+      <img src="/assets/img/msupdate/old-dashboardmobile.jpg" alt="old dashboard mobile"/>
+    </SwiperSlide>
+    <SwiperSlide>
+      <img src="/assets/img/msupdate/old-recentlyplayedmobile.jpg" alt="old recently played mobile" width="400" />
+    </SwiperSlide>
+    <SwiperSlide>
+      <img src="/assets/img/msupdate/old-failedscrobblesmobile.jpg" alt="old failed mobile" width="400" />
+    </SwiperSlide>
+  </SwiperWrapper>
+    <SwiperButtonPrev />
+  <SwiperButtonNext />
+  <SwiperPagination />
+</Swiper>
 
 ## Why Fix What Isn't Broken?
 
@@ -77,7 +124,7 @@ Despite its lack of charm and modern functionality, the frontend _does work_. Mo
 One of the last features I [highlighted](#multi-scrobbler-today) is relatively new, [**Scrobble Transforms.**](https://docs.multi-scrobbler.app/configuration/transforms/) This feature allows users to configure automated steps to modify their data in any individual Source/Client, before it is sent anywhere else. The steps can be hooked into various "stages" of the data lifecycle allowing very granular control of how the data is modified, when, where, and how.
 
 
-<details markdown=1>
+<details>
 
 <summary>Why Would You Do this?</summary>
 
@@ -434,8 +481,8 @@ I decided to start with the hardest, and more important, element of the design: 
 
 From sketch:
 
-<img src="/assets/img/msupdate/timeline-rough-sketch.jpg" alt="sketch rough" width="300" /><!-- TODO chirpy image classes not supported: .normal -->
-<img src="/assets/img/msupdate/timeline-detailed-sketch.jpg" alt="sketch detailed" width="300" /><!-- TODO chirpy image classes not supported: .normal -->
+<img src="/assets/img/msupdate/timeline-rough-sketch.jpg" alt="sketch rough" width="300" />
+<img src="/assets/img/msupdate/timeline-detailed-sketch.jpg" alt="sketch detailed" width="300" />
 
 To implementation:
 
@@ -449,6 +496,15 @@ After trialing the timeline, the rest of the redesign *mostly* fell in to place 
 ### Landing Page
 
 The landing page retained some of its old look, with summaries of Source/Client being listed in a *now* responsive design that is friendly for both mobile and desktop.
+
+<ImageCompare
+  before="/assets/img/msupdate/old-dashboard.jpg"
+  after="/assets/img/msupdate/ms-componentlist.png"
+  beforeAlt="old dashboard"
+  afterAlt="new"
+  labels={["old","new"]}
+  start={40}
+/>
 
 <img src="/assets/img/msupdate/old-dashboard.jpg" alt="old dashboard" width="600" />
 _old landing_
