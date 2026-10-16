@@ -1,0 +1,203 @@
+---
+title: 'Modernizing Multi-Scrobbler: Frontend'
+published: 2026-10-16 00:00:02
+draft: true
+description: Design first approach to a new UI
+author: FoxxMD
+series: 'Modernizing Multi-Scrobbler'
+tags:
+  - rabbit hole
+  - database
+  - react
+  - api
+  - typescript
+  - development
+---
+
+import ImageCompare from '@moonarc/core/ImageCompare'
+import {
+  Swiper,
+  SwiperWrapper,
+  SwiperSlide,
+  SwiperButtonPrev,
+  SwiperButtonNext,
+  SwiperPagination,
+} from 'astro-swiper'
+
+This three-part series details the context, design, and implementation decisions I made to modernize my 6 year old software project.
+
+This is not a superficial overview: I dive into the real issues I faced, my thought process, and the actual stack/technology choices I followed through with.
+
+## Previously...
+
+[In the last post](/posts/modernizing-multi-scrobbler-backend) I covered refactoring the backend to address systemic memory issues, moving data to database/queues, data serialization and retention. All of which was in the service of enabling the new frontend functionality.
+
+In this post I cover **frontend** development and learning design-first principles, specific painpoint in user experience and how I addressed them, and compare/contast the old and new design with ✨screenshots✨.
+
+## My Achilles Heel
+
+I'll be the first to admit that my UI/UX and design skills _are not great_.
+
+I'm not so bad as to fill the stereotype of _"unstyled html with every button and field on the same page"_ engineer but visual creativity is a challenge for me. I usually rely on exhaustive component frameworks like [antd](https://ant.design/) to do the heavy lifting on UI and then I slap together whatever work on the page.
+
+Shamefully, the majority of my frontend implementations have been born from a vague idea in my mind where I design _and implement_ at the same time without any thought for layout/design ahead of time. There is very little iteration.
+
+## Design First
+
+With this redesign I was determined to do things The Right Way™️ so that my efforts aren't wasted on rewriting later, my users get actual improvements in experience, and I can gain the skills necessary to implement future projects without as much pain.
+
+The first step for this was already done: my UI/UX design friend had already [sat me down](#user-first-design-requirements) and helped me hammer out a rough outline of the design along with (not so) gently challenging my assumptions about how to design for UX.
+
+Now, I wanted to put this design into practice in a way that I could iterate on without needing to do the full implementation inside the codebase. After some research, I landed on using [**Storybook**](https://storybook.js.org/) for this process, mainly because it [already supported integration](https://storybook.js.org/docs/builders/vite) with my existing frontend tooling library, [vite.](https://vite.dev/)
+
+Storybook enabled me to build components in isolation so that I could quickly iterate on how each functioned and rendered without having to wire up a full backend, or dependent components, to make them work.
+
+I used a combination of hand-rolled [data interface fixtures](https://github.com/FoxxMD/multi-scrobbler/blob/fab2e4938de35713868ecd048b4e793890c71b68/src/core/tests/utils/apiFixtures.ts) using [Faker](https://fakerjs.dev/) for randomized data, and [MSW](https://storybook.js.org/docs/writing-stories/mocking-data-and-modules/mocking-network-requests#set-up-the-msw-addon) for mocking API calls so that each storied compoonent could get "real" data that would match the actual, eventual implementation used in MS.
+
+This approach also enabled me to hammer out the API interface the backend would eventually implement, driven by the needs of the frontend.
+
+:::note
+Additionally, this helped informed my decision for state and API interaction in the frontend implementation. I was already sticking with React since its what I knew but I found that [Tanstack Query](https://tanstack.com/query) met my needs quite well while being much lighter than something like [RTK Query](https://redux-toolkit.js.org/rtk-query/overview).
+:::
+
+### Component Library
+
+The last planning step was choosing a component library. I probably spent the most time on this step as there are just _so many_ libraries to choose from these days.
+
+Having previously worked with antd I knew I didn't want to go with any library that was as heavily opinionated as it was.
+
+A benefit of libraries like ant is that they are _exhaustive_ and will have implementations, or features, missing from more orthogonal libraries, such as fully-featured Tables with filters/sorting baked in. However, the drawback with these libraries is that if you need to do something that is custom or out of scope you are _really out of luck_ and they can become incredible difficult to work with.
+
+At the same time, I was wary about diving in to something like [shadcn](https://ui.shadcn.com/) because I did not want to be responsible for every single component and how they are all composed. I know headless ui libraries are _so hot right now_ but it seemed like too much work for my scope, where I wanted to create an implementation with a modicum of flexibility but that wouldn't need to be fully bespoke. Remember, [if Multi-Scrobbler is working as intended you shouldn't need to use the web UI at all.](#why-fix-what-isnt-broken) I didn't want to spend a ton of time creating a UI where the ideal usecase is that a user looks at it for 2 minutes for the entire lifetime of the app.
+
+After much hand-wringing and tinkering in different doc playgrounds, I finally settled on [Chakra UI](https://www.chakra-ui.com/). Chakra strikes a good balance, for me, between allowing users to compose components and providing an opinionated framework. It is built on [Ark UI](https://ark-ui.com/), a headless ui library like shadcn, but provides a batteries-included UI/UX experience that can be tailored when needed.
+
+## Timeline Trial By Fire
+
+With tooling for frontend decided and a library chosen the next step was start implementing the design.
+
+I decided to start with the hardest, and more important, element of the design: the [Play Timeline](#play-timeline). This is the linchpin of all the user stories and planning I had done so if Chakra couldn't handle this then it wasn't up to the job for the rest of the app.
+
+From sketch:
+
+<img
+  src="/assets/img/msupdate/timeline-rough-sketch.jpg"
+  alt="sketch rough"
+  width="300"
+/>
+<img
+  src="/assets/img/msupdate/timeline-detailed-sketch.jpg"
+  alt="sketch detailed"
+  width="300"
+/>
+
+To implementation:
+
+![implementation1](/assets/img/msupdate/ms-timeline.jpg)
+![implementation-error](/assets/img/msupdate/ms-mbemptyquery.png)
+
+This worked out quite well! Transform steps are a nested timeline within the main Play events timeline. For both, using [`@pierre/diffs`](https://github.com/pierrecomputer/pierre) to visualize line-by-line differences and [`json-diff-ts`](https://github.com/ltwlf/json-diff-ts) to apply changes between steps in order to visualize the final rendered gives users a clear display of how their scrobble data changes over time.
+
+After trialing the timeline, the rest of the redesign _mostly_ fell in to place with much iteration and more feedback from my design friend.
+
+## Landing Page
+
+The landing page retained some of its old look, with summaries of Source/Client being listed in a _now_ responsive design that is friendly for both mobile and desktop.
+
+<ImageCompare
+  before="/assets/img/msupdate/newms-componentlist-old.jpg"
+  after="/assets/img/msupdate/newms-componentlist-new.jpg"
+  beforeAlt="old dashboard"
+  afterAlt="new"
+  labels={['old', 'new']}
+  start={40}
+/>
+
+<img
+  src="/assets/img/msupdate/ms-componentlist.png"
+  alt="new dashboard desktop"
+  width="800"
+/>
+_new landing on mobile_
+
+<img src="/assets/img/msupdate/ms-liveupdates.png" alt="live indicators" width="800" />
+_real time update indicators_
+
+Critically, though, all of the actions from the old landing are gone, as well as the logs. One of the lessons learned from my design friend was the concept of [**progressive disclosure**](https://en.wikipedia.org/wiki/Progressive_disclosure): only present the information that is required for the current task a user is doing.
+
+The old landing displayed summaries, logs, and actions all together without any thought for what the user would need to be doing. This meant that the page (Source/Client cards) were cramped and full of potentially unneeded information.
+
+Now, the new landing page presents the user with a way to quickly see only relevant summary information (state of Source/Client, live update indicators) with the option to navigate to a new screen that presents more detailed information and actions _for only the component they care about_.
+
+### Logs
+
+The Logs UX is another implementation of progressive disclosure. Most users don't immediately need Logs to be accessible as they present noisy data that is largely only useful for troubleshooting purposes.
+
+In the old UI logs were always visible at the bottom of the landing page. They were not (and still aren't really) mobile-friendly but were there, regardless.
+
+Now, they are accessible through a button in the header and present as a floating window that can be accessed _from anywhere in the app_. Logs are now _more_ accessible but also _less intrusive_. If a user knows they want them, they are there when they need them. Otherwise, they'll never be in the way.
+
+![app header](/assets/img/msupdate/ms-header.png)
+_Logs "terminal" button always visible in the header_
+
+<img src="/assets/img/msupdate/ms-logs.jpg" alt="logs" width="800" />
+_Float Logs window_
+
+## Source/Client Details
+
+There was no details page to compare from the old ui, so here is the new ui presented without context:
+
+![source client details](/assets/img/msupdate/ms-componentdetailed.png)
+_The details page for a Spotify Source_
+
+More progressive disclosure here: Instead of displaying all possible actions for a Source/Client (restart, stop, authenticate, etc...), a primary (common) action is displayed contextually next to the current state of the component (`Running` -> `Power Off button`). A menu button allows choosing a secondary action.
+
+## Play Lists
+
+In the old UI the Plays for a Source/Client were on different pages separated by type (scrobbled, failed).
+
+Now, all associated Plays are unified into a single view with the type of Play represented by a colorful state badge. The type of Play can be filtered, along with time played at, and other attributes, in a virtual list with infinite loading for easier navigation on mobile.
+
+<ImageCompare
+  before="/assets/img/msupdate/newms-plays-old.jpg"
+  after="/assets/img/msupdate/newms-plays-new.jpg"
+  labels={['old', 'new']}
+  start={40}
+/>
+
+This gives users a cognitively easy way to check on any specific Play, or EX see only problematic Plays by filtering by Failed, without having to leave the current view.
+
+<img src="/assets/img/msupdate/ms-playlist.jpg" alt="plays list" width="700" />
+_Filtering by failed scrobbles_
+
+## Play Details
+
+Once again, progressive disclosure reveals only the required information to make a decision without overwhelming the user.
+
+The unexpanded Play shows a summary of the track data and state. The state badge also shows a primary action if the state contextually needs it.
+
+Within an expanded Play, relevant information is surfaced if necessary based on the state of the Play. This is a _huge_ improvement over the old UI which showed only a preview of the error without any context.
+
+<ImageCompare
+  class="ratio"
+  after="/assets/img/msupdate/ms-playfailed.png"
+  before="/assets/img/msupdate/old-failed.jpg"
+  labels={['old', 'new']}
+  start={40}
+/>
+
+## Closing Thoughts
+
+A seemingly straight-forward new feature, _showing the user a timeline of events we already persist_, turned out to be a monumental task.
+
+I couldn't have planned for this eventuality from the very beginning but the warning signs were there for a long time. I dragged my feet for _years_ on tackling this architecture issue and when it finally showed its face it was a much larger beast than had I dealt with it early.
+
+At the same time, Multi-Scrobbler's backend architecture was in flux for a large part of its early life. Additionally, the ORM/DB library scene in typescript has taken massive leaps in maturity and feature sets in the last few years. Had I decided to implement a database design earlier I may have locked myself into a design for MS that would have been rigid and slowed development as well as being hampered by the immature tools of the time. So it's hard to say _when_ was the right time to tackle this challenge. Though _now_ is always better than _never_.
+
+Despite the above whinging, I truly enjoyed climbing this mountain. It gave me the opportunity to re-think a non-trivial project at 1000ft level and then learn how to actually implement that refactor without having to burn everything down. I haven't had a chance to do a surgical refactor like this, it was a learning experience.
+
+Additionally, I finally got to try my hand at _proper_ design-first implementation with real-world tools (Storybook) and iterate on development for the frontend in a way I haven't been able to before. I learned so much about developing APIs based on design needs and felt like I got a real glimpse of what it means to be a "frontend developer".
+
+**If you are a developer reading this**, I implore you to get your hands dirty in your next big refactor. Gen AI assistance has been a huge boon for velocity, especially in indie project, but doing everything _manually_ lets you sharpen your skills and learn new lessons you wouldn't get by just letting Claude plan and refactor your code. There's a balance to be struck between hand-rolling every function and letting 10 sub agents commit over your entire worktree.
+
+**If you are a multi-scrobbler user**, I hope this was an insightful read into what it takes to keep your scrobbles flowing frictionlessly! If this gave you any ideas about how MS could be better, or what else you would like to see it doing in the future, please don't hesitate to drop a [feature request](https://github.com/FoxxMD/multi-scrobbler/issues/new?template=02-feature-request.yml) in the github issues! I'm looking forward to hearing from you. 🎵
