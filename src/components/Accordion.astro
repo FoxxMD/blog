@@ -1,0 +1,166 @@
+---
+import { Icon } from 'astro-icon/components'
+
+interface Props {
+  title: string
+  type: string
+}
+
+const { title, type = 'normal' } = Astro.props as Props
+let borderColor: string | undefined =
+  'color-mix(in oklab, var(--color-foreground) 40%, transparent)'
+let backgroundColor: string | undefined = 'inherit'
+let iconColor: string | undefined = 'inherit'
+let varColor = `--color-${type}`
+console.log(type)
+switch (type) {
+  case 'tip':
+  case 'warning':
+    console.log('setting tip color')
+    // color-mix(in oklab, var(--color-tip) 7%, transparent)
+    //borderColor = 'color-mix(in oklab, var(--color-tip) 90%, transparent)'
+    backgroundColor = `color-mix(in oklab, var(${varColor}) 7%, transparent)`
+    iconColor = `var(${varColor})`
+    break
+  default:
+    //borderColor = 'color-mix(in oklab, var(--color-accent) 10%, transparent)'
+    //borderColor = 'color-mix(in oklab, var(--color-foreground) 90%, transparent)'
+    backgroundColor = 'color-mix(in oklab, var(--color-foreground) 7%, transparent)'
+}
+---
+
+<style define:vars={{ borderColor, backgroundColor, iconColor }}>
+  button {
+    border: 0;
+    color: var(--color-foreground);
+    background-color: var(--backgroundColor);
+    padding-block: calc(var(--spacing) * 1.5);
+  }
+  button:hover {
+    background-color: var(--backgroundColor);
+  }
+  div.accordion {
+    border-color: var(--borderColor);
+    border-width: 1px;
+    margin-block: calc(var(--spacing) * 4);
+  }
+  button.accordion__button span.content::before {
+    position: absolute;
+    top: calc(var(--spacing) * 3);
+    left: calc(var(--spacing) * 4);
+    width: calc(var(--spacing) * 4);
+    height: calc(var(--spacing) * 4);
+    background-color: var(--color-blue);
+    content: '';
+    mask-size: contain;
+    mask-position: center;
+    mask-repeat: no-repeat;
+    content: '';
+    background-color: var(--iconColor);
+  }
+  button.accordion__button span.content.tip::before {
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' version='1.1' width='16' height='16' aria-hidden='true'%3E%3Cpath d='M8 1.5c-2.363 0-4 1.69-4 3.75 0 .984.424 1.625.984 2.304l.214.253c.223.264.47.556.673.848.284.411.537.896.621 1.49a.75.75 0 0 1-1.484.211c-.04-.282-.163-.547-.37-.847a8.456 8.456 0 0 0-.542-.68c-.084-.1-.173-.205-.268-.32C3.201 7.75 2.5 6.766 2.5 5.25 2.5 2.31 4.863 0 8 0s5.5 2.31 5.5 5.25c0 1.516-.701 2.5-1.328 3.259-.095.115-.184.22-.268.319-.207.245-.383.453-.541.681-.208.3-.33.565-.37.847a.751.751 0 0 1-1.485-.212c.084-.593.337-1.078.621-1.489.203-.292.45-.584.673-.848.075-.088.147-.173.213-.253.561-.679.985-1.32.985-2.304 0-2.06-1.637-3.75-4-3.75ZM5.75 12h4.5a.75.75 0 0 1 0 1.5h-4.5a.75.75 0 0 1 0-1.5ZM6 15.25a.75.75 0 0 1 .75-.75h2.5a.75.75 0 0 1 0 1.5h-2.5a.75.75 0 0 1-.75-.75Z'%3E%3C/path%3E%3C/svg%3E");
+  }
+  button.accordion__button span.content.warning::before {
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' version='1.1' width='16' height='16' aria-hidden='true'%3E%3Cpath d='M4.47.22A.749.749 0 0 1 5 0h6c.199 0 .389.079.53.22l4.25 4.25c.141.14.22.331.22.53v6a.749.749 0 0 1-.22.53l-4.25 4.25A.749.749 0 0 1 11 16H5a.749.749 0 0 1-.53-.22L.22 11.53A.749.749 0 0 1 0 11V5c0-.199.079-.389.22-.53Zm.84 1.28L1.5 5.31v5.38l3.81 3.81h5.38l3.81-3.81V5.31L10.69 1.5ZM8 4a.75.75 0 0 1 .75.75v3.5a.75.75 0 0 1-1.5 0v-3.5A.75.75 0 0 1 8 4Zm0 8a1 1 0 1 1 0-2 1 1 0 0 1 0 2Z'%3E%3C/path%3E%3C/svg%3E");
+  }
+  button.accordion__button span.content:not(.normal) {
+    margin-left: calc(var(--spacing) * 5.5);
+  }
+</style>
+
+<div class="accordion group relative rounded-xl border">
+  <button
+    class="accordion__button flex w-full flex-1 items-center justify-between gap-2 px-3 text-left font-medium transition sm:px-4"
+    type="button"
+    id={`${title} accordion menu button`}
+    aria-expanded="false"
+    aria-controls={`${title} accordion menu content`}
+  >
+    <span class:list={['content', type]}>
+      {title}
+    </span>
+
+    <svg
+      class="accordion__chevron h-7 w-7 shrink-0 transition-transform"
+      aria-hidden="true"
+      xmlns="http://www.w3.org/2000/svg"
+      width="24"
+      height="24"
+      viewBox="0 0 24 24"
+      ><path
+        fill="none"
+        stroke="currentColor"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        stroke-width="2"
+        d="m6 9l6 6l6-6"></path></svg
+    >
+  </button>
+
+  <div
+    id={`${title} accordion menu content`}
+    aria-labelledby={`${title} accordion menu button`}
+    class="accordion__content hidden max-h-0 overflow-hidden px-3 transition-all duration-300 ease-in-out sm:px-4"
+  >
+    <p class="prose mb-4 mt-1 max-w-full transition-[height]">
+      <slot />
+    </p>
+  </div>
+</div>
+
+<script>
+  function accordionSetup() {
+    const accordionMenus = document.querySelectorAll(
+      '.accordion',
+    ) as NodeListOf<HTMLElement>
+    accordionMenus.forEach((accordionMenu) => {
+      const accordionButton = accordionMenu.querySelector(
+        '.accordion__button',
+      ) as HTMLElement
+      const accordionChevron = accordionMenu.querySelector(
+        '.accordion__chevron',
+      ) as HTMLElement
+      const accordionContent = accordionMenu.querySelector(
+        '.accordion__content',
+      ) as HTMLElement
+
+      if (accordionButton && accordionContent && accordionChevron) {
+        accordionButton.addEventListener('click', (event) => {
+          if (!accordionMenu.classList.contains('active')) {
+            // if accordion is currently closed, so open it
+            accordionMenu.classList.add('active')
+            accordionButton.setAttribute('aria-expanded', 'true')
+
+            // set max-height to the height of the accordion content
+            // this makes it animate properly
+            accordionContent.classList.remove('hidden')
+            accordionContent.style.maxHeight = accordionContent.scrollHeight + 'px'
+            accordionChevron.classList.add('rotate-180')
+          } else {
+            // accordion is currently open, so close it
+            accordionMenu.classList.remove('active')
+            accordionButton.setAttribute('aria-expanded', 'false')
+
+            // set max-height to the height of the accordion content
+            // this makes it animate properly
+            accordionContent.style.maxHeight = '0px'
+            accordionChevron.classList.remove('rotate-180')
+            // delay to allow close animation
+            setTimeout(() => {
+              accordionContent.classList.add('hidden')
+            }, 300)
+          }
+          event.preventDefault()
+          return false
+        })
+      }
+    })
+  }
+
+  // runs on initial page load
+  accordionSetup()
+
+  // runs on view transitions navigation
+  document.addEventListener('astro:after-swap', accordionSetup)
+</script>

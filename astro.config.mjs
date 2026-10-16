@@ -30,6 +30,8 @@ import rehypePixelated from './src/plugins/rehype-pixelated'/* Custom plugin to 
 import mermaid from 'astro-mermaid'
 import moonarc from 'moonarc';
 
+import icon from 'astro-icon';
+
 // https://astro.build/config
 export default defineConfig({
   site: siteConfig.site,
@@ -75,23 +77,22 @@ export default defineConfig({
   vite: {
     plugins: [tailwindcss()],
   },
-  integrations: [sitemap(), codeblocks({
+  integrations: [sitemap(), // Must come after expressive-code integration
+  codeblocks({
     codeTabs: {},
     expandable: { lines: 12, auto: 30 },
     expressiveCode: {
       themes: siteConfig.themes.include,
       useDarkModeMediaQuery: true,
     }
-  }), // Must come after expressive-code integration
-  mermaid({
+  }), mermaid({
     theme: 'neutral',
     autoTheme: true,
     mermaidConfig: {
       flowchart: {
       },
     },
-  }), mdx(),
-  moonarc()],
+  }), mdx(), moonarc(), icon()],
   experimental: {
     contentIntellisense: true,
   },
