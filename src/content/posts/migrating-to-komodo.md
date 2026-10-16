@@ -71,7 +71,7 @@ name = "server-prod"
 description = "the prod server"
 tags = ["prod"]
 [server.config]
-address = "http://localhost:8120
+address = "http://localhost:8120"
 region = "AshburnDc1"
 enabled = true
 ```
