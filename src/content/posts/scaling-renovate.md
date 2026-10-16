@@ -774,5 +774,3 @@ This is the *full* `renovate.json` config I am using on my Komodo monorepo. It i
 </details>
 
 ___
-
-## Footnotes

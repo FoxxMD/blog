@@ -572,7 +572,5 @@ Open the Pi-hole dashboard, then:
 </details>
 ___
 
-## Footnotes
-
 [^resolver-optional]: Often times the software can serve as both a DNS server and the resolver but it is not required.
 [^simplified]: This explanation is greatly simplified and meant to be illustrative, not exhaustive.

@@ -326,7 +326,5 @@ Additionally, connecting our Management Instance to the Central API (Crowdsec cl
 
 ___
 
-## Footnotes
-
 [^detection]: Intrustion **Detection** System and Intrustion **Prevention** System
 [^regexflags]: There are some [experimental feature flags](https://www.crowdsec.net/blog/increasing-performance-crowdsec-1-5) that can be used to improve performance for regex but even with them enabled there is the potential for bottlenecking CPU usage on the host, depending on traffic volume and the compute power of your cpu.

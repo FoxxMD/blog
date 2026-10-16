@@ -1864,5 +1864,3 @@ networks:
 ```
 
 ___
-
-## Footnotes

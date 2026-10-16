@@ -511,7 +511,7 @@ Each line should be a URL to a plain text with domains (and/or expressions) to b
 
 Alternatively, use **Quick Add** to add a recommended block lists.
 
-## Footnotes
+___
 
 [^http-challenge]: The most common way to do this is through an HTTP challenge where the cert provider must be able to access your web server (and the cert client) publicly. For this you need to forward ports into your private network and your web server needs to be able to receive public-internet traffic. This is, obviously, what we are trying to avoid. Even if you do this once and then disable port forwarding the certs need to be renewed from time to time which makes this non-feasible for unattended maintenance.
 
